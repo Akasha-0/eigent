@@ -13,3 +13,5 @@ wheels/
 runtime
 
 app/public/upload/
+.env
+alembic.ini
