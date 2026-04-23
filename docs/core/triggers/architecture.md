@@ -291,3 +291,9 @@ Update `server/app/model/trigger/app_configs/__init__.py` to export the new conf
 **📌 Design Pattern:** The trigger system uses a **registry pattern** for config classes and handlers, and a **factory pattern** for service instantiation. Follow these patterns to maintain consistency when extending the system.
 
 </aside>
+
+## What's next?
+
+- [Schedule Trigger](/core/triggers/schedule-trigger) — Learn about time-based triggers using cron expressions.
+- [Webhook Trigger](/core/triggers/webhook-trigger) — Learn about event-driven triggers via HTTP endpoints.
+- [Environment Variables](/core/triggers/environment-variables) — Full reference for all trigger-related environment variables.
