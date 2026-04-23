@@ -44,7 +44,7 @@ async def dev_login(username: str | None = Form(default=None), password: str | N
     return {"access_token": create_access_token(1), "token_type": "bearer"}
 
 
-@router.post("/auto-login", name="auto login for local mode")
+@router.post("/auto-login", name="auto login for local mode", dependencies=[login_rate_limiter])
 async def auto_login(db_session: Session = Depends(session)) -> LoginResponse:
     """Auto login for fully local mode. Returns most recently active user or creates default."""
     user = User.by(
