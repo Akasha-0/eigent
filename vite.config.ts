@@ -19,6 +19,7 @@ import path from 'node:path';
 import { defineConfig, loadEnv } from 'vite';
 import electron from 'vite-plugin-electron/simple';
 import pkg from './package.json';
+import { visualizer } from 'rollup-plugin-visualizer';
 
 // Git hash of the last commit that touched server/ — used for stale-server detection.
 // Set as VITE_ env var so Vite exposes it to import.meta.env automatically.
@@ -52,6 +53,12 @@ export default defineConfig(({ command, mode }) => {
     },
     plugins: [
       react(),
+      visualizer({
+        filename: 'dist/stats.html',
+        open: false,
+        gzipSize: true,
+        brotliSize: true,
+      }),
       electron({
         main: {
           // Shortcut of `build.lib.entry`

@@ -252,8 +252,8 @@ async def webhook_trigger(
             
             if has_active_sessions:
                 # Wait for delivery confirmation (10 second timeout)
-                delivery_confirmation = await redis_manager.wait_for_delivery(
-                    execution_id, 
+                delivery_confirmation = await redis_manager.wait_for_delivery_async(
+                    execution_id,
                     timeout=10.0
                 )
                 

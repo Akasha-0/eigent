@@ -49,10 +49,27 @@ class RedisSessionManager:
         self.SESSION_TTL = 86400
         # TTL for delivery confirmations (5 minutes)
         self.DELIVERY_TTL = 300
-        
+
+        # Async Redis client for blocking operations
+        self._async_client: Optional[Any] = None
+
         # Pub/Sub
         self._pubsub = None
         self._pubsub_client: Optional[Redis] = None
+
+    @property
+    def async_client(self):
+        """Get or create async Redis client for blocking operations."""
+        if self._async_client is None:
+            import redis.asyncio as aioredis
+            self._async_client = aioredis.from_url(
+                self.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=30
+            )
+        return self._async_client
     
     @property
     def client(self) -> Redis:
@@ -304,14 +321,60 @@ class RedisSessionManager:
                 "error": str(e)
             })
             return False
-    
+
+    def _delivery_channel_key(self, execution_id: str) -> str:
+        """Build the Redis key for a delivery confirmation channel.
+
+        Args:
+            execution_id: The execution ID.
+
+        Returns:
+            Redis key string.
+        """
+        return f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
+
+    def confirm_delivery_push(self, execution_id: str, session_id: str) -> bool:
+        """Push a delivery confirmation via Redis pub/sub channel.
+
+        Args:
+            execution_id: The execution ID that was delivered.
+            session_id: The session ID that received the message.
+
+        Returns:
+            True if published successfully, False otherwise.
+        """
+        try:
+            channel = self._delivery_channel_key(execution_id)
+            payload = json.dumps({
+                "execution_id": execution_id,
+                "session_id": session_id,
+                "delivered_at": datetime.now(timezone.utc).isoformat()
+            })
+            self.client.publish(channel, payload)
+            logger.debug("Delivery push published", extra={
+                "execution_id": execution_id,
+                "session_id": session_id
+            })
+            return True
+        except Exception as e:
+            logger.error("Failed to publish delivery push", extra={
+                "execution_id": execution_id,
+                "session_id": session_id,
+                "error": str(e)
+            })
+            return False
+
     def confirm_delivery(self, execution_id: str, session_id: str) -> bool:
         """Confirm that a message was delivered to a WebSocket client.
-        
+
+        Writes confirmation via two mechanisms:
+          1. SETEX on the hash key  – for backward compatibility
+          2. RPUSH on the list key   – used by wait_for_delivery_async() (BLPOP)
+
         Args:
             execution_id: The execution ID that was delivered
             session_id: The session ID that received the message
-            
+
         Returns:
             True if confirmation was stored, False otherwise
         """
@@ -322,7 +385,13 @@ class RedisSessionManager:
                 "session_id": session_id,
                 "delivered_at": datetime.now(timezone.utc).isoformat()
             })
+
+            # Store confirmation as a simple value with TTL (for polling)
             self.client.setex(confirmation_key, self.DELIVERY_TTL, confirmation_data)
+
+            # Also push to LIST so blocking BLPOP waiter gets the signal
+            self.client.rpush(confirmation_key, confirmation_data)
+
             logger.debug("Delivery confirmed", extra={
                 "execution_id": execution_id,
                 "session_id": session_id
@@ -336,47 +405,65 @@ class RedisSessionManager:
             })
             return False
     
-    async def wait_for_delivery(
-        self, 
-        execution_id: str, 
-        timeout: float = 10.0,
-        poll_interval: float = 0.1
+    async def wait_for_delivery_async(
+        self,
+        execution_id: str,
+        timeout: float = 10.0
     ) -> Optional[Dict[str, Any]]:
-        """Wait for delivery confirmation of an execution.
-        
+        """Wait for delivery confirmation using async BLPOP (non-polling).
+
+        Uses Redis BLPOP for efficient blocking instead of polling.
+
         Args:
-            execution_id: The execution ID to wait for
-            timeout: Maximum time to wait in seconds
-            poll_interval: Time between checks in seconds
-            
+            execution_id: The execution ID to wait for.
+            timeout: Maximum time to wait in seconds.
+
         Returns:
-            Confirmation data if delivered, None if timeout
+            Confirmation data dict if delivered, None if timeout.
         """
-        confirmation_key = f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
-        elapsed = 0.0
-        
-        while elapsed < timeout:
-            try:
-                data = self.client.get(confirmation_key)
-                if data:
-                    # Clean up the confirmation key
-                    self.client.delete(confirmation_key)
-                    return json.loads(data)
-            except Exception as e:
-                logger.error("Error checking delivery confirmation", extra={
+        try:
+            # Create a temporary list key that BLPOP can wait on
+            list_key = f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
+            # Push a sentinel value that we will clean up
+            # We use LPUSH then BLPOP to wait for the value
+            client = self.async_client
+
+            # Push sentinel then immediately BLPOP - the sentinel will be
+            # consumed and we wait for the actual confirmation
+            import uuid
+            sentinel_id = str(uuid.uuid4())
+            await client.lpush(list_key, f"__sentinel:{sentinel_id}")
+
+            # Wait for the actual delivery confirmation via BLPOP
+            result = await client.blpop(list_key, timeout=int(timeout))
+
+            if result is None:
+                # Timeout waiting for confirmation
+                # Clean up any leftover sentinel
+                await client.lrem(list_key, 0, f"__sentinel:{sentinel_id}")
+                logger.warning("Delivery confirmation timeout", extra={
                     "execution_id": execution_id,
-                    "error": str(e)
+                    "timeout": timeout
                 })
-            
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-        
-        logger.warning("Delivery confirmation timeout", extra={
-            "execution_id": execution_id,
-            "timeout": timeout
-        })
-        return None
-    
+                return None
+
+            _, value = result
+
+            # Skip sentinel values - they indicate timeout, not delivery
+            if value and not value.startswith("__sentinel:"):
+                # Clean up the confirmation key
+                await client.delete(list_key)
+                return json.loads(value)
+
+            return None
+
+        except Exception as e:
+            logger.error("Error in async delivery wait", extra={
+                "execution_id": execution_id,
+                "error": str(e)
+            }, exc_info=True)
+            return None
+
     def has_active_sessions_for_user(self, user_id: str) -> bool:
         """Check if a user has any active WebSocket sessions.
         

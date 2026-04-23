@@ -133,10 +133,13 @@ class TriggerScheduleService:
     def dispatch_trigger(self, trigger: Trigger) -> bool:
         """
         Dispatch a trigger for execution.
-        
+
+        Changes are flushed to the database via `flush()` but NOT committed —
+        the caller is responsible for batching and committing the transaction.
+
         Args:
             trigger: The trigger to dispatch
-            
+
         Returns:
             True if dispatched successfully, False otherwise
         """
@@ -186,8 +189,8 @@ class TriggerScheduleService:
                 )
             
             self.session.add(trigger)
-            self.session.commit()
-            
+            self.session.flush()
+
             # TODO: Queue the actual task execution
             # This would integrate with a task queue (e.g., Celery) to execute the trigger's action
             # For now event is sent to client for execution
@@ -250,38 +253,82 @@ class TriggerScheduleService:
     def process_schedules(self, due_schedules: List[Trigger]) -> Tuple[int, int]:
         """
         Process due schedules, checking rate limits and dispatching.
-        
+
+        Rate-limited trigger next_run_at updates are collected and batch-committed
+        in a single transaction after the loop. Dispatched triggers are also
+        collected and batch-committed in a single transaction — at most two
+        commits per batch instead of one per trigger.
+
         Args:
             due_schedules: List of triggers that are due for execution
-            
+
         Returns:
             Tuple of (dispatched_count, rate_limited_count)
         """
         dispatched_count = 0
         rate_limited_count = 0
-        
+
+        # Collect dispatched triggers to batch their flushes into a single commit
+        dispatched_triggers: List[Trigger] = []
+        # Collect rate-limited triggers to batch their next_run_at updates
+        rate_limited_updates: List[Trigger] = []
+
         for trigger in due_schedules:
             # Check rate limits
             if not check_rate_limits(self.session, trigger):
                 rate_limited_count += 1
-                
+
                 # Still update next_run_at even if rate limited, so we don't keep checking
                 try:
                     trigger.next_run_at = self.calculate_next_run_at(trigger, datetime.now(timezone.utc))
-                    self.session.add(trigger)
-                    self.session.commit()
+                    rate_limited_updates.append(trigger)
                 except Exception as e:
                     logger.error(
-                        "Failed to update next_run_at for rate limited trigger",
+                        "Failed to calculate next_run_at for rate limited trigger",
                         extra={"trigger_id": trigger.id, "error": str(e)}
                     )
-                
+
                 continue
-            
+
             # Dispatch the trigger
             if self.dispatch_trigger(trigger):
                 dispatched_count += 1
-        
+                dispatched_triggers.append(trigger)
+
+        # Batch-commit all rate-limited next_run_at updates in a single transaction
+        if rate_limited_updates:
+            try:
+                for trigger in rate_limited_updates:
+                    self.session.add(trigger)
+                self.session.commit()
+                logger.debug(
+                    "Rate-limited triggers batch-committed",
+                    extra={"count": len(rate_limited_updates)}
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to batch-commit rate-limited trigger updates",
+                    extra={"count": len(rate_limited_updates), "error": str(e)}
+                )
+                self.session.rollback()
+
+        # Batch-commit all dispatched triggers in a single transaction
+        if dispatched_triggers:
+            try:
+                for trigger in dispatched_triggers:
+                    self.session.add(trigger)
+                self.session.commit()
+                logger.debug(
+                    "Dispatched triggers batch-committed",
+                    extra={"count": len(dispatched_triggers)}
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to batch-commit dispatched triggers",
+                    extra={"count": len(dispatched_triggers), "error": str(e)}
+                )
+                self.session.rollback()
+
         return dispatched_count, rate_limited_count
     
     def poll_and_execute_due_triggers(
