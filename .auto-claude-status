@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "003-missing-rate-limiting-on-all-authentication-endpoi",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 1,
+    "total": 10,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 3,
     "started_at": "2026-04-22T22:40:29.433623"
   },
-  "last_update": "2026-04-22T22:46:31.662401"
+  "last_update": "2026-04-22T22:49:05.363330"
 }
