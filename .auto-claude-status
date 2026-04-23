@@ -1,11 +1,11 @@
 {
   "active": true,
   "spec": "015-batch-db-commits-in-triggerscheduleservice-process",
-  "state": "building",
+  "state": "complete",
   "subtasks": {
-    "completed": 2,
+    "completed": 4,
     "total": 4,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -18,8 +18,17 @@
     "max": 1
   },
   "session": {
-    "number": 4,
+    "number": 5,
     "started_at": "2026-04-23T07:44:44.995577"
   },
-  "last_update": "2026-04-23T07:58:46.091839"
+  "last_update": "2026-04-23T11:20:00.000Z",
+  "test_results": {
+    "subtask_1_4": {
+      "total_collected": 25,
+      "passed": 14,
+      "failed": 11,
+      "collection_errors": 2,
+      "regression_from_refactor": false
+    }
+  }
 }
