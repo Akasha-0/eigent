@@ -254,9 +254,10 @@ class TriggerScheduleService:
         """
         Process due schedules, checking rate limits and dispatching.
 
-        All rate-limited trigger next_run_at updates are collected and committed
-        in a single batch after the loop. Dispatched triggers are flushed (not
-        committed) — the caller is responsible for finalizing the transaction.
+        Rate-limited trigger next_run_at updates are collected and batch-committed
+        in a single transaction after the loop. Dispatched triggers are also
+        collected and batch-committed in a single transaction — at most two
+        commits per batch instead of one per trigger.
 
         Args:
             due_schedules: List of triggers that are due for execution
@@ -267,6 +268,8 @@ class TriggerScheduleService:
         dispatched_count = 0
         rate_limited_count = 0
 
+        # Collect dispatched triggers to batch their flushes into a single commit
+        dispatched_triggers: List[Trigger] = []
         # Collect rate-limited triggers to batch their next_run_at updates
         rate_limited_updates: List[Trigger] = []
 
@@ -290,6 +293,7 @@ class TriggerScheduleService:
             # Dispatch the trigger
             if self.dispatch_trigger(trigger):
                 dispatched_count += 1
+                dispatched_triggers.append(trigger)
 
         # Batch-commit all rate-limited next_run_at updates in a single transaction
         if rate_limited_updates:
@@ -305,6 +309,23 @@ class TriggerScheduleService:
                 logger.error(
                     "Failed to batch-commit rate-limited trigger updates",
                     extra={"count": len(rate_limited_updates), "error": str(e)}
+                )
+                self.session.rollback()
+
+        # Batch-commit all dispatched triggers in a single transaction
+        if dispatched_triggers:
+            try:
+                for trigger in dispatched_triggers:
+                    self.session.add(trigger)
+                self.session.commit()
+                logger.debug(
+                    "Dispatched triggers batch-committed",
+                    extra={"count": len(dispatched_triggers)}
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to batch-commit dispatched triggers",
+                    extra={"count": len(dispatched_triggers), "error": str(e)}
                 )
                 self.session.rollback()
 

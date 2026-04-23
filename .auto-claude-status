@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "015-batch-db-commits-in-triggerscheduleservice-process",
+  "state": "building",
+  "subtasks": {
+    "completed": 2,
+    "total": 4,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Batch DB Commits Refactor",
+    "id": null,
+    "total": 4
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 4,
+    "started_at": "2026-04-23T07:44:44.995577"
+  },
+  "last_update": "2026-04-23T07:58:46.091839"
+}
