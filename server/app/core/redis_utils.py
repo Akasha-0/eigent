@@ -368,7 +368,7 @@ class RedisSessionManager:
         """Confirm that a message was delivered to a WebSocket client.
 
         Writes confirmation via two mechanisms:
-          1. SETEX on the hash key  – used by the polling wait_for_delivery()
+          1. SETEX on the hash key  – for backward compatibility
           2. RPUSH on the list key   – used by wait_for_delivery_async() (BLPOP)
 
         Args:
@@ -405,52 +405,6 @@ class RedisSessionManager:
             })
             return False
     
-    async def wait_for_delivery(
-        self,
-        execution_id: str,
-        timeout: float = 10.0,
-        poll_interval: float = 0.1
-    ) -> Optional[Dict[str, Any]]:
-        """Wait for delivery confirmation of an execution.
-
-        .. deprecated::
-            This method is deprecated and will be removed in a future version.
-            Use :meth:`wait_for_delivery_async` instead, which uses efficient
-            Redis BLPOP instead of CPU-intensive polling.
-
-        Args:
-            execution_id: The execution ID to wait for
-            timeout: Maximum time to wait in seconds
-            poll_interval: Time between checks in seconds
-
-        Returns:
-            Confirmation data if delivered, None if timeout
-        """
-        confirmation_key = f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
-        elapsed = 0.0
-        
-        while elapsed < timeout:
-            try:
-                data = self.client.get(confirmation_key)
-                if data:
-                    # Clean up the confirmation key
-                    self.client.delete(confirmation_key)
-                    return json.loads(data)
-            except Exception as e:
-                logger.error("Error checking delivery confirmation", extra={
-                    "execution_id": execution_id,
-                    "error": str(e)
-                })
-            
-            await asyncio.sleep(poll_interval)
-            elapsed += poll_interval
-        
-        logger.warning("Delivery confirmation timeout", extra={
-            "execution_id": execution_id,
-            "timeout": timeout
-        })
-        return None
-
     async def wait_for_delivery_async(
         self,
         execution_id: str,
