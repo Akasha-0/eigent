@@ -349,11 +349,15 @@ class RedisSessionManager:
 
     def confirm_delivery(self, execution_id: str, session_id: str) -> bool:
         """Confirm that a message was delivered to a WebSocket client.
-        
+
+        Writes confirmation via two mechanisms:
+          1. SETEX on the hash key  – used by the polling wait_for_delivery()
+          2. RPUSH on the list key   – used by wait_for_delivery_async() (BLPOP)
+
         Args:
             execution_id: The execution ID that was delivered
             session_id: The session ID that received the message
-            
+
         Returns:
             True if confirmation was stored, False otherwise
         """
@@ -364,7 +368,13 @@ class RedisSessionManager:
                 "session_id": session_id,
                 "delivered_at": datetime.now(timezone.utc).isoformat()
             })
+
+            # Store confirmation as a simple value with TTL (for polling)
             self.client.setex(confirmation_key, self.DELIVERY_TTL, confirmation_data)
+
+            # Also push to LIST so blocking BLPOP waiter gets the signal
+            self.client.rpush(confirmation_key, confirmation_data)
+
             logger.debug("Delivery confirmed", extra={
                 "execution_id": execution_id,
                 "session_id": session_id
