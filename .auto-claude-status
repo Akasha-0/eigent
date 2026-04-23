@@ -3,9 +3,9 @@
   "spec": "019-document-trigger-scheduling-system-for-developers",
   "state": "building",
   "subtasks": {
-    "completed": 5,
+    "completed": 6,
     "total": 6,
-    "in_progress": 1,
+    "in_progress": 0,
     "failed": 0
   },
   "phase": {
@@ -21,5 +21,5 @@
     "number": 7,
     "started_at": "2026-04-23T07:22:35.985700"
   },
-  "last_update": "2026-04-23T07:48:10.104672"
+  "last_update": "2026-04-23T13:00:00.000000"
 }
