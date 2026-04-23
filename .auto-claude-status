@@ -1,10 +1,10 @@
 {
   "active": true,
   "spec": "014-replace-in-memory-list-iteration-in-get-trigger-st",
-  "state": "planning",
+  "state": "building",
   "subtasks": {
-    "completed": 0,
-    "total": 0,
+    "completed": 3,
+    "total": 6,
     "in_progress": 1,
     "failed": 0
   },
@@ -18,8 +18,8 @@
     "max": 1
   },
   "session": {
-    "number": 2,
+    "number": 4,
     "started_at": "2026-04-23T08:28:02.014423"
   },
-  "last_update": "2026-04-23T08:34:02.284539"
+  "last_update": "2026-04-23T08:40:48.497965"
 }
