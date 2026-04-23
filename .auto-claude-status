@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "014-replace-in-memory-list-iteration-in-get-trigger-st",
-  "state": "complete",
+  "spec": "013-replace-redis-polling-loop-in-wait-for-delivery-wi",
+  "state": "building",
   "subtasks": {
-    "completed": 6,
-    "total": 6,
-    "in_progress": 0,
+    "completed": 1,
+    "total": 7,
+    "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "SQL Aggregation Refactor",
+    "current": "Add async blocking delivery wait method",
     "id": null,
-    "total": 6
+    "total": 3
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 6,
+    "number": 3,
     "started_at": "2026-04-23T08:28:02.014423"
   },
-  "last_update": "2026-04-23T09:05:06.629236"
+  "last_update": "2026-04-23T08:36:22.503456"
 }

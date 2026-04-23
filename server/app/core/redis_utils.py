@@ -49,10 +49,27 @@ class RedisSessionManager:
         self.SESSION_TTL = 86400
         # TTL for delivery confirmations (5 minutes)
         self.DELIVERY_TTL = 300
-        
+
+        # Async Redis client for blocking operations
+        self._async_client: Optional[Any] = None
+
         # Pub/Sub
         self._pubsub = None
         self._pubsub_client: Optional[Redis] = None
+
+    @property
+    def async_client(self):
+        """Get or create async Redis client for blocking operations."""
+        if self._async_client is None:
+            import redis.asyncio as aioredis
+            self._async_client = aioredis.from_url(
+                self.redis_url,
+                encoding="utf-8",
+                decode_responses=True,
+                socket_connect_timeout=5,
+                socket_timeout=30
+            )
+        return self._async_client
     
     @property
     def client(self) -> Redis:
@@ -428,7 +445,66 @@ class RedisSessionManager:
             "timeout": timeout
         })
         return None
-    
+
+    async def wait_for_delivery_async(
+        self,
+        execution_id: str,
+        timeout: float = 10.0
+    ) -> Optional[Dict[str, Any]]:
+        """Wait for delivery confirmation using async BLPOP (non-polling).
+
+        Uses Redis BLPOP for efficient blocking instead of polling.
+
+        Args:
+            execution_id: The execution ID to wait for.
+            timeout: Maximum time to wait in seconds.
+
+        Returns:
+            Confirmation data dict if delivered, None if timeout.
+        """
+        try:
+            # Create a temporary list key that BLPOP can wait on
+            list_key = f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
+            # Push a sentinel value that we will clean up
+            # We use LPUSH then BLPOP to wait for the value
+            client = self.async_client
+
+            # Push sentinel then immediately BLPOP - the sentinel will be
+            # consumed and we wait for the actual confirmation
+            import uuid
+            sentinel_id = str(uuid.uuid4())
+            await client.lpush(list_key, f"__sentinel:{sentinel_id}")
+
+            # Wait for the actual delivery confirmation via BLPOP
+            result = await client.blpop(list_key, timeout=int(timeout))
+
+            if result is None:
+                # Timeout waiting for confirmation
+                # Clean up any leftover sentinel
+                await client.lrem(list_key, 0, f"__sentinel:{sentinel_id}")
+                logger.warning("Delivery confirmation timeout", extra={
+                    "execution_id": execution_id,
+                    "timeout": timeout
+                })
+                return None
+
+            _, value = result
+
+            # Skip sentinel values - they indicate timeout, not delivery
+            if value and not value.startswith("__sentinel:"):
+                # Clean up the confirmation key
+                await client.delete(list_key)
+                return json.loads(value)
+
+            return None
+
+        except Exception as e:
+            logger.error("Error in async delivery wait", extra={
+                "execution_id": execution_id,
+                "error": str(e)
+            }, exc_info=True)
+            return None
+
     def has_active_sessions_for_user(self, user_id: str) -> bool:
         """Check if a user has any active WebSocket sessions.
         
