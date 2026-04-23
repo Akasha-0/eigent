@@ -151,9 +151,9 @@ def google_search(query: str, search_type: str = "web", key: Key = Depends(key_m
                     responses.append(response)
         else:
             error_info = data.get("error", {})
-            logger.error(f"Google search failed - API response: {error_info}")
-            responses.append({"error": f"Google search failed - API response: {error_info}"})
+            logger.error("Google search failed", extra={"error": error_info}, exc_info=True)
+            raise HTTPException(status_code=500, detail="Internal server error")
 
     except Exception as e:
-        responses.append({"error": f"google search failed: {e!s}"})
-    return responses
+        logger.error("Google search failed", extra={"error": str(e)}, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
