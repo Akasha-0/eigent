@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi\\.auto-claude\\specs\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi\\.auto-claude\\specs\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\003-missing-rate-limiting-on-all-authentication-endpoi\\.auto-claude\\specs\\003-missing-rate-limiting-on-all-authentication-endpoi/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__query-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}

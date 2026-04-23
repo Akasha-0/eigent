@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "003-missing-rate-limiting-on-all-authentication-endpoi",
+  "state": "planning",
+  "subtasks": {
+    "completed": 0,
+    "total": 0,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "Rate Limiting - Auth Endpoints",
+    "id": null,
+    "total": 4
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 2,
+    "started_at": "2026-04-22T22:40:29.433623"
+  },
+  "last_update": "2026-04-22T22:46:31.662401"
+}
