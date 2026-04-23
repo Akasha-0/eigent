@@ -38,8 +38,8 @@ const reactConfig = {
     'react-hooks/static-components': 'off',
     // Disable set-state-in-effect as it's too strict for legitimate use cases
     'react-hooks/set-state-in-effect': 'off',
-    // Allow conditional useStackApp when HAS_STACK_KEYS is a build-time constant
-    'react-hooks/rules-of-hooks': ['error', { 'allowConditionalHookRegistration': true }],
+    // Allow conditional hook registration
+    'react-hooks/rules-of-hooks': ['error', { additionalHooks: 'allowConditionalHookRegistration' }],
   },
 };
 
