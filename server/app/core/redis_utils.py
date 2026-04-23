@@ -406,18 +406,23 @@ class RedisSessionManager:
             return False
     
     async def wait_for_delivery(
-        self, 
-        execution_id: str, 
+        self,
+        execution_id: str,
         timeout: float = 10.0,
         poll_interval: float = 0.1
     ) -> Optional[Dict[str, Any]]:
         """Wait for delivery confirmation of an execution.
-        
+
+        .. deprecated::
+            This method is deprecated and will be removed in a future version.
+            Use :meth:`wait_for_delivery_async` instead, which uses efficient
+            Redis BLPOP instead of CPU-intensive polling.
+
         Args:
             execution_id: The execution ID to wait for
             timeout: Maximum time to wait in seconds
             poll_interval: Time between checks in seconds
-            
+
         Returns:
             Confirmation data if delivered, None if timeout
         """
