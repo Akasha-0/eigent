@@ -1,0 +1,9 @@
+{
+  "sourceType": "ideation",
+  "ideationType": "performance_optimizations",
+  "ideaId": "perf-001",
+  "rationale": "With 82 server routes and growing chat history data, grouped history queries will degrade linearly with user history size. A composite index on (user_id, project_id, created_at DESC) would reduce query time from O(n log n) to O(log n) for the history fetch, and from full scan to index-only for the trigger count subquery.",
+  "category": "performance",
+  "performanceCategory": "database",
+  "impact": "high"
+}
