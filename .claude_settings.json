@@ -11,14 +11,14 @@
       "Edit(./**)",
       "Glob(./**)",
       "Grep(./**)",
-      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
-      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-\\.auto-claude\\specs\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-\\.auto-claude\\specs\\004-information-disclosure-via-verbose-error-messages-/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\004-information-disclosure-via-verbose-error-messages-\\.auto-claude\\specs\\004-information-disclosure-via-verbose-error-messages-/**)",
       "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
       "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
       "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
@@ -28,12 +28,7 @@
       "WebFetch(*)",
       "WebSearch(*)",
       "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__query-docs(*)",
-      "mcp__graphiti-memory__search_nodes(*)",
-      "mcp__graphiti-memory__search_facts(*)",
-      "mcp__graphiti-memory__add_episode(*)",
-      "mcp__graphiti-memory__get_episodes(*)",
-      "mcp__graphiti-memory__get_entity_edge(*)"
+      "mcp__context7__query-docs(*)"
     ]
   }
 }

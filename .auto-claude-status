@@ -1,25 +1,25 @@
 {
   "active": true,
-  "spec": "013-replace-redis-polling-loop-in-wait-for-delivery-wi",
+  "spec": "004-information-disclosure-via-verbose-error-messages-",
   "state": "complete",
   "subtasks": {
-    "completed": 7,
-    "total": 7,
+    "completed": 5,
+    "total": 5,
     "in_progress": 0,
     "failed": 0
   },
   "phase": {
-    "current": "Remove old polling method",
+    "current": "Fix verbose error messages in proxy controller",
     "id": null,
-    "total": 1
+    "total": 5
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 8,
-    "started_at": "2026-04-23T08:28:02.014423"
+    "number": 6,
+    "started_at": "2026-04-23T09:56:15.567265"
   },
-  "last_update": "2026-04-23T10:35:00.000000"
+  "last_update": "2026-04-23T10:32:05.193349"
 }
