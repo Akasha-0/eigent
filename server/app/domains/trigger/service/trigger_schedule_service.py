@@ -133,10 +133,13 @@ class TriggerScheduleService:
     def dispatch_trigger(self, trigger: Trigger) -> bool:
         """
         Dispatch a trigger for execution.
-        
+
+        Changes are flushed to the database via `flush()` but NOT committed —
+        the caller is responsible for batching and committing the transaction.
+
         Args:
             trigger: The trigger to dispatch
-            
+
         Returns:
             True if dispatched successfully, False otherwise
         """
@@ -186,8 +189,8 @@ class TriggerScheduleService:
                 )
             
             self.session.add(trigger)
-            self.session.commit()
-            
+            self.session.flush()
+
             # TODO: Queue the actual task execution
             # This would integrate with a task queue (e.g., Celery) to execute the trigger's action
             # For now event is sent to client for execution
