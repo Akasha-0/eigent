@@ -121,7 +121,7 @@
     "artifactName": "${productName}.Setup.${version}.exe",
     "target": [
       {
-        "target": "nsis",
+        "target": "portable",
         "arch": ["x64"]
       }
     ]
