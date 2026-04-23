@@ -1,0 +1,36 @@
+name: Dependabot
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  dependabot:
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Create Pull Request
+        id: cpr
+        uses: dependabot/fetch-metadata@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Approve PR
+        if: steps.cpr.outputs.approved == 'false'
+        run: |
+          gh pr review --approve ${{ github.event.pull_request.number }}
+          gh pr approve ${{ github.event.pull_request.number }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
