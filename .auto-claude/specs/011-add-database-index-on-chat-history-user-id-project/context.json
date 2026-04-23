@@ -1,0 +1,26 @@
+{
+  "files_to_modify": {
+    "server": [
+      "server/alembic/versions/"
+    ]
+  },
+  "files_to_reference": [
+    "server/alembic/versions/2025_10_15_1446-eec7242b3a9b_modify_chat_history_add_project_id.py",
+    "server/alembic/versions/2026_02_06_0440-9464b9d89de7_feat_trigger.py",
+    "server/alembic/versions/2025_08_11_2107-0001_init_initial_schema.py"
+  ],
+  "patterns": {
+    "migration_pattern": "Alembic migrations follow standard pattern with upgrade() creating indexes via op.create_index() and downgrade() reversing via op.drop_index(). Migration file name: YYYYMMDD_HHMM-<short_hash>_<slug>.py. Latest migration revision ID: 9464b9d89de7 (feat-trigger)",
+    "index_naming": "Index names use op.f('ix_<table>_<column(s)>') format, e.g., op.f('ix_chat_history_user_id'). Composite index columns are passed as a list.",
+    "index_order": "Composite index column order matters - most selective column first. For (user_id, project_id, created_at DESC): user_id is integer (most selective), project_id is string, created_at is timestamp."
+  },
+  "existing_implementations": {
+    "description": "ChatHistory model exists at server/app/model/chat/chat_history.py with user_id (index=True) and project_id (index=True, nullable). The get_grouped_histories() and get_grouped_project() in chat_service.py filter by user_id and project_id. Existing single-column indexes: ix_chat_history_user_id, ix_chat_history_task_id, ix_chat_history_project_id",
+    "relevant_files": [
+      "server/app/model/chat/chat_history.py",
+      "server/app/domains/chat/service/chat_service.py",
+      "server/app/domains/chat/api/history_controller.py",
+      "server/alembic/versions/2025_10_15_1446-eec7242b3a9b_modify_chat_history_add_project_id.py"
+    ]
+  }
+}

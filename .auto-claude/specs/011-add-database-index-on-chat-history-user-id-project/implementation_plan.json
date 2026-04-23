@@ -1,0 +1,180 @@
+{
+  "feature": "Add database index on `chat_history.user_id + project_id` for grouped history queries",
+  "workflow_type": "simple",
+  "workflow_rationale": "Single-service database migration to add one composite index. No multi-service dependencies, no frontend changes. Plain alembic migration file is the only deliverable.",
+  "phases": [
+    {
+      "id": "phase-1-migration",
+      "name": "Create Alembic Migration for Composite Index",
+      "type": "implementation",
+      "description": "Create a new Alembic migration file that adds a composite B-tree index on (user_id, project_id, created_at DESC) to the chat_history table. This index will speed up grouped history queries by supporting index-only scans on both the user filter and project filter simultaneously.",
+      "depends_on": [],
+      "parallel_safe": true,
+      "subtasks": [
+        {
+          "id": "subtask-1-1",
+          "description": "Create alembic migration file for composite index on chat_history(user_id, project_id, created_at)",
+          "service": "server",
+          "files_to_modify": [],
+          "files_to_create": [
+            "server/alembic/versions/YYYYMMDD_HHMM-<hash>_add_chat_history_composite_idx.py"
+          ],
+          "patterns_from": [
+            "server/alembic/versions/2025_10_15_1446-eec7242b3a9b_modify_chat_history_add_project_id.py"
+          ],
+          "verification": {
+            "type": "command",
+            "command": "cd server && python -c \"from alembic import command; from alembic.config import Config; print('Alembic imports OK')\"",
+            "expected": "Alembic imports OK"
+          },
+          "status": "completed",
+          "notes": "Migration file created at server/alembic/versions/2026_04_22_0000-e3f8a1b72c49_add_chat_history_composite_idx.py. Revision ID e3f8a1b72c49, down_revision 9464b9d89de7. Compilation verified OK.",
+          "updated_at": "2026-04-23T01:47:52.105801+00:00"
+        },
+        {
+          "id": "subtask-1-2",
+          "description": "Verify migration down_revision chain is correct",
+          "service": "server",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd server && python -c \"from alembic.config import Config; from alembic import command; cfg = Config('alembic.ini'); import sys; sys.path.insert(0, '.'); from alembic.script import ScriptDirectory; sd = ScriptDirectory.from_config(cfg); heads = sd.get_heads(); print('Heads:', heads)\"",
+            "expected": "Heads: ['9464b9d89de7']"
+          },
+          "status": "completed",
+          "notes": "Migration chain verified. The new migration e3f8a1b72c49 correctly points to parent 9464b9d89de7. Full chain: 0001_init -> d74ab2a44600 -> eec7242b3a9b -> add_timestamp_to_chat_step -> 9464b9d89de7 -> e3f8a1b72c49 (HEAD). Chain is linear with no branches.",
+          "updated_at": "2026-04-23T02:04:51.823376+00:00"
+        }
+      ]
+    },
+    {
+      "id": "phase-2-verification",
+      "name": "Verify Migration Syntax and Completeness",
+      "type": "implementation",
+      "description": "Verify the migration file has correct Python syntax, proper revision IDs, and complete upgrade/downgrade functions.",
+      "depends_on": [
+        "phase-1-migration"
+      ],
+      "parallel_safe": false,
+      "subtasks": [
+        {
+          "id": "subtask-2-1",
+          "description": "Verify migration file syntax with python -m py_compile",
+          "service": "server",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd server && python -m py_compile alembic/versions/*.py 2>&1 | head -20 || echo \"All migration files compile OK\"",
+            "expected": "All migration files compile OK"
+          },
+          "status": "completed",
+          "notes": "All 6 migration files (0001_init, d74ab2a44600, eec7242b3a9b, add_timestamp_to_chat_step, 9464b9d89de7, e3f8a1b72c49) compile without syntax errors. Verification passed.",
+          "updated_at": "2026-04-23T02:07:40.547276+00:00"
+        },
+        {
+          "id": "subtask-2-2",
+          "description": "Verify migration upgrade/downgrade functions are present",
+          "service": "server",
+          "files_to_modify": [],
+          "files_to_create": [],
+          "patterns_from": [],
+          "verification": {
+            "type": "command",
+            "command": "cd server && python -c \"import sys; sys.path.insert(0, '.'); from pathlib import Path; files = sorted(Path('alembic/versions').glob('*.py')); latest = files[-1]; print('Latest migration:', latest.name); content = latest.read_text(); print('Has upgrade:', 'def upgrade' in content); print('Has downgrade:', 'def downgrade' in content); print('Has create_index:', 'create_index' in content)\"",
+            "expected": "Has upgrade: True; Has downgrade: True; Has create_index: True"
+          },
+          "status": "pending",
+          "notes": "Verify the new migration file contains upgrade(), downgrade(), and the op.create_index() call for the composite index."
+        }
+      ]
+    }
+  ],
+  "summary": {
+    "total_phases": 2,
+    "total_subtasks": 4,
+    "services_involved": [
+      "server"
+    ],
+    "parallelism": {
+      "max_parallel_phases": 1,
+      "parallel_groups": [],
+      "recommended_workers": 1,
+      "speedup_estimate": "N/A - sequential migration task"
+    },
+    "startup_command": "cd server && alembic upgrade head"
+  },
+  "verification_strategy": {
+    "risk_level": "low",
+    "skip_validation": false,
+    "test_creation_phase": "none",
+    "test_types_required": [],
+    "security_scanning_required": false,
+    "staging_deployment_required": false,
+    "acceptance_criteria": [
+      "Alembic migration file created with correct revision ID chain",
+      "Composite index on (user_id, project_id, created_at) created in upgrade()",
+      "Index dropped in downgrade()",
+      "Migration file has valid Python syntax",
+      "Revision ID is unique and follows existing pattern"
+    ],
+    "verification_steps": [
+      {
+        "name": "Migration Syntax Check",
+        "command": "cd server && python -m py_compile alembic/versions/<new_migration>.py",
+        "expected_outcome": "No syntax errors",
+        "type": "command",
+        "required": true,
+        "blocking": true
+      },
+      {
+        "name": "Alembic Revision Chain Check",
+        "command": "cd server && alembic current && alembic history --format=chain",
+        "expected_outcome": "New revision appears after 9464b9d89de7",
+        "type": "command",
+        "required": true,
+        "blocking": true
+      }
+    ],
+    "reasoning": "Low risk schema change - adds B-tree index only, no data migration, no breaking changes. Rollback is simple index drop."
+  },
+  "qa_acceptance": {
+    "unit_tests": {
+      "required": false,
+      "commands": [],
+      "minimum_coverage": null
+    },
+    "integration_tests": {
+      "required": false,
+      "commands": [],
+      "services_to_test": []
+    },
+    "e2e_tests": {
+      "required": false,
+      "commands": [],
+      "flows": []
+    },
+    "browser_verification": {
+      "required": false,
+      "pages": []
+    },
+    "database_verification": {
+      "required": true,
+      "checks": [
+        "migrations-exist",
+        "migrations-applied",
+        "schema-valid"
+      ]
+    }
+  },
+  "qa_signoff": null,
+  "status": "in_progress",
+  "planStatus": "in_progress",
+  "xstateState": "planning",
+  "executionPhase": "coding",
+  "updated_at": "2026-04-23T02:05:31.394Z",
+  "last_updated": "2026-04-23T02:07:40.547276+00:00"
+}
