@@ -12,7 +12,7 @@
 # limitations under the License.
 # ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from exa_py import Exa
 from loguru import logger
 from app.shared.auth.user_auth import key_must
