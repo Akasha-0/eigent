@@ -78,7 +78,8 @@ def exa_search(search: ExaSearch, key: Key = Depends(key_must)):
         return results
 
     except Exception as e:
-        return {"error": f"Exa search failed: {e!s}"}
+        logger.error("Exa search failed", extra={"error": str(e)}, exc_info=True)
+        raise HTTPException(status_code=500, detail="Internal server error")
 
 
 @router.get("/google")
