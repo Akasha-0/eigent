@@ -110,34 +110,6 @@ How often the timeout checker runs. This should be equal to or greater than your
 EXECUTION_TIMEOUT_CHECKER_INTERVAL=2  # Check every 2 minutes
 ```
 
-## Webhook Trigger Variables
-
-Variables that affect webhook and Slack-based triggers.
-
-### `WEBHOOK_REQUEST_TIMEOUT_SECONDS`
-
-**Type:** `int` | **Default:** `"30"` (seconds)
-
-Timeout for inbound webhook requests. If an incoming webhook request takes longer than this, it is terminated and the trigger is not fired.
-
-```bash
-WEBHOOK_REQUEST_TIMEOUT_SECONDS=15  # Faster failure for slow senders
-```
-
-## Global Rate Limiting Variables
-
-Variables that apply to all trigger types (schedule, webhook, and Slack).
-
-### `TRIGGER_RATE_LIMIT_WINDOW_SECONDS`
-
-**Type:** `int` | **Default:** `"3600"` (1 hour)
-
-Sliding window for per-trigger hourly rate limiting. Controls how far back the system looks when counting executions for `max_executions_per_hour`.
-
-```bash
-TRIGGER_RATE_LIMIT_WINDOW_SECONDS=1800  # 30-minute window instead of 1 hour
-```
-
 ## Quick Reference
 
 | Variable | Default | Description |
@@ -150,8 +122,6 @@ TRIGGER_RATE_LIMIT_WINDOW_SECONDS=1800  # 30-minute window instead of 1 hour
 | `EXECUTION_TIMEOUT_CHECKER_INTERVAL` | `"1"` | Timeout checker interval in minutes |
 | `EXECUTION_PENDING_TIMEOUT_SECONDS` | `"60"` | Seconds before a pending execution is marked `missed` |
 | `EXECUTION_RUNNING_TIMEOUT_SECONDS` | `"600"` | Seconds before a running execution is marked `failed` |
-| `WEBHOOK_REQUEST_TIMEOUT_SECONDS` | `"30"` | Seconds before an inbound webhook request times out |
-| `TRIGGER_RATE_LIMIT_WINDOW_SECONDS` | `"3600"` | Sliding window for hourly rate limiting |
 
 ## What's next?
 

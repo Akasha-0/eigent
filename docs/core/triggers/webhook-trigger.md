@@ -210,7 +210,6 @@ The following environment variables affect webhook trigger behavior:
 
 | Variable | Default | Description |
 |---|---|---|
-| `WEBHOOK_REQUEST_TIMEOUT_SECONDS` | `"30"` | Seconds before an inbound webhook request times out. |
 | `EXECUTION_PENDING_TIMEOUT_SECONDS` | `"60"` | Seconds before a `pending` execution is marked `missed`. |
 | `EXECUTION_RUNNING_TIMEOUT_SECONDS` | `"600"` | Seconds before a `running` execution is marked `failed`. |
 

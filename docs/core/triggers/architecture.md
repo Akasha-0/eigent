@@ -28,7 +28,6 @@ Instead of manually running agents, you define a trigger—specifying when it sh
 ### **Architecture: How Triggers Work**
 
 The trigger system uses a layered, service-oriented architecture with Celery for background processing.
-![Trigger System](/docs/images/trigger_architecture.jpg)
 
 The system is organized into four main layers:
 

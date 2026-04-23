@@ -26,9 +26,7 @@ Fires when an HTTP request hits the trigger's unique endpoint. Use this to integ
 
 ### Slack Trigger
 
-Fires when a Slack event matches your configured filters — such as app mentions, channel messages, or file shares. Use this to give your workforce a conversational interface via Slack.
-
-- [Read the Slack Trigger guide](/core/triggers/slack-trigger) →
+Fires when a Slack event matches your configured filters — such as app mentions, channel messages, or file shares. Use this to give your workforce a conversational interface via Slack. See [Architecture](/core/triggers/architecture) for details on the SlackTriggerConfig.
 
 ## Key Concepts
 
@@ -56,8 +54,6 @@ Each trigger has a `max_failure_count` field. After the specified number of cons
 ### Celery Beat Poller
 
 Schedule triggers are polled by a Celery Beat task that runs on a configurable interval (default: 1 minute). The poller fetches all triggers where `next_run_at` is due, checks rate limits, dispatches allowed triggers, and re-calculates the next run time using the `croniter` library.
-
-![Trigger System](/docs/images/trigger_architecture.jpg)
 
 ## Environment Variables
 
