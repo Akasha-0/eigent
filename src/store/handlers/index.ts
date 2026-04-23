@@ -38,11 +38,28 @@ export {
   updateMessage,
   upsertStreamingMessage,
   validateMessage,
-  type AddMessageInput,
-  type MessageOperationResult,
-  type SetMessagesInput,
-  type UpdateMessageInput,
 } from './MessageHandler';
 
-export { ConnectionManager } from './ConnectionManager';
-export { TaskQueue } from './TaskQueue';
+export { ConnectionManager, connectionManager } from './ConnectionManager';
+
+// Re-export types from central types file
+export type {
+  Message,
+  TaskInfo,
+  File,
+  FileInfo,
+  Agent,
+  AgentMessage,
+  ToolKit,
+  ConnectionStatus,
+  ConnectionState,
+  ConnectionEvent,
+  ConnectionConfig,
+  TaskPriority,
+  QueuedTask,
+  TaskQueueConfig,
+  MessageOperationResult,
+  AddMessageInput,
+  UpdateMessageInput,
+  SetMessagesInput,
+} from '@/types/handlers';

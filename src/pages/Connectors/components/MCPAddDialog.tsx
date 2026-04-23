@@ -19,34 +19,14 @@ import {
   DialogFooter,
   DialogHeader,
 } from '@/components/ui/dialog';
-import loader from '@monaco-editor/loader';
-import MonacoEditor from '@monaco-editor/react';
-import * as monaco from 'monaco-editor';
-import React, { useState } from 'react';
+import React, { lazy, Suspense, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { setupMonacoEnvironment } from '@/lib/monaco-setup';
 
-if (typeof globalThis !== 'undefined') {
-  (globalThis as any).MonacoEnvironment = {
-    getWorker(_: string, label: string) {
-      if (['json', 'css', 'html', 'typescript', 'javascript'].includes(label)) {
-        return new Worker(
-          URL.createObjectURL(
-            new Blob(
-              [
-                `
-								self.onmessage = function () {};
-								`,
-              ],
-              { type: 'application/javascript' }
-            )
-          )
-        );
-      }
-    },
-  };
-}
-
-loader.config({ monaco }); // put at the top of the MCPAddDialog component file
+// Lazy load Monaco Editor - only loaded when dialog opens
+const MonacoEditor = lazy(() =>
+  setupMonacoEnvironment().then(() => import('@monaco-editor/react'))
+);
 
 interface MCPAddDialogProps {
   open: boolean;
@@ -63,6 +43,18 @@ interface MCPAddDialogProps {
   onInstall: () => void;
 }
 
+// Monaco Editor fallback while loading
+function MonacoEditorSkeleton() {
+  return (
+    <div className="flex items-center justify-center h-[300px] bg-[#1e1e1e]">
+      <div className="flex flex-col items-center gap-2">
+        <div className="w-8 h-8 border-2 border-[#007acc] border-t-transparent rounded-full animate-spin" />
+        <span className="text-[#cccccc] text-sm">Loading editor...</span>
+      </div>
+    </div>
+  );
+}
+
 export default function MCPAddDialog({
   open,
   localJson,
@@ -73,6 +65,7 @@ export default function MCPAddDialog({
 }: MCPAddDialogProps) {
   const [jsonError, setJsonError] = useState<string | null>(null);
   const { t } = useTranslation();
+
   // when the dialog is opened, automatically format the JSON
   React.useEffect(() => {
     if (open && localJson) {
@@ -80,9 +73,10 @@ export default function MCPAddDialog({
         const obj = JSON.parse(localJson);
         setLocalJson(JSON.stringify(obj, null, 4));
         setJsonError(null);
-      } catch (e: any) {
+      } catch (e: unknown) {
         // do not format invalid JSON, keep the original content
-        setJsonError('JSON format error: ' + (e.message || e.toString()));
+        const errorMessage = e instanceof Error ? e.message : String(e);
+        setJsonError('JSON format error: ' + errorMessage);
       }
     } else if (open) {
       setJsonError(null);
@@ -129,23 +123,25 @@ export default function MCPAddDialog({
             </div>
           )}
           <div className="rounded-xl border-border-primary overflow-hidden border">
-            <MonacoEditor
-              height="300px"
-              width="100%"
-              language="json"
-              theme="vs-dark"
-              value={localJson}
-              onChange={(v) => {
-                setLocalJson(v ?? '');
-              }}
-              options={{
-                minimap: { enabled: false },
-                fontSize: 14,
-                scrollBeyondLastLine: false,
-                readOnly: installing,
-                automaticLayout: true,
-              }}
-            />
+            <Suspense fallback={<MonacoEditorSkeleton />}>
+              <MonacoEditor
+                height="300px"
+                width="100%"
+                language="json"
+                theme="vs-dark"
+                value={localJson}
+                onChange={(v) => {
+                  setLocalJson(v ?? '');
+                }}
+                options={{
+                  minimap: { enabled: false },
+                  fontSize: 14,
+                  scrollBeyondLastLine: false,
+                  readOnly: installing,
+                  automaticLayout: true,
+                }}
+              />
+            </Suspense>
           </div>
         </DialogContentSection>
         <DialogFooter
