@@ -253,38 +253,61 @@ class TriggerScheduleService:
     def process_schedules(self, due_schedules: List[Trigger]) -> Tuple[int, int]:
         """
         Process due schedules, checking rate limits and dispatching.
-        
+
+        All rate-limited trigger next_run_at updates are collected and committed
+        in a single batch after the loop. Dispatched triggers are flushed (not
+        committed) — the caller is responsible for finalizing the transaction.
+
         Args:
             due_schedules: List of triggers that are due for execution
-            
+
         Returns:
             Tuple of (dispatched_count, rate_limited_count)
         """
         dispatched_count = 0
         rate_limited_count = 0
-        
+
+        # Collect rate-limited triggers to batch their next_run_at updates
+        rate_limited_updates: List[Trigger] = []
+
         for trigger in due_schedules:
             # Check rate limits
             if not check_rate_limits(self.session, trigger):
                 rate_limited_count += 1
-                
+
                 # Still update next_run_at even if rate limited, so we don't keep checking
                 try:
                     trigger.next_run_at = self.calculate_next_run_at(trigger, datetime.now(timezone.utc))
-                    self.session.add(trigger)
-                    self.session.commit()
+                    rate_limited_updates.append(trigger)
                 except Exception as e:
                     logger.error(
-                        "Failed to update next_run_at for rate limited trigger",
+                        "Failed to calculate next_run_at for rate limited trigger",
                         extra={"trigger_id": trigger.id, "error": str(e)}
                     )
-                
+
                 continue
-            
+
             # Dispatch the trigger
             if self.dispatch_trigger(trigger):
                 dispatched_count += 1
-        
+
+        # Batch-commit all rate-limited next_run_at updates in a single transaction
+        if rate_limited_updates:
+            try:
+                for trigger in rate_limited_updates:
+                    self.session.add(trigger)
+                self.session.commit()
+                logger.debug(
+                    "Rate-limited triggers batch-committed",
+                    extra={"count": len(rate_limited_updates)}
+                )
+            except Exception as e:
+                logger.error(
+                    "Failed to batch-commit rate-limited trigger updates",
+                    extra={"count": len(rate_limited_updates), "error": str(e)}
+                )
+                self.session.rollback()
+
         return dispatched_count, rate_limited_count
     
     def poll_and_execute_due_triggers(
