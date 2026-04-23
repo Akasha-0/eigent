@@ -14,7 +14,7 @@
 
 from datetime import datetime, timedelta, timezone
 from typing import Optional, List, Dict, Any
-from sqlmodel import select, and_, or_
+from sqlmodel import select, and_, or_, func
 from uuid import uuid4
 from loguru import logger
 

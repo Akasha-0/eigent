@@ -1,0 +1,25 @@
+{
+  "active": true,
+  "spec": "014-replace-in-memory-list-iteration-in-get-trigger-st",
+  "state": "planning",
+  "subtasks": {
+    "completed": 0,
+    "total": 0,
+    "in_progress": 1,
+    "failed": 0
+  },
+  "phase": {
+    "current": "SQL Aggregation Refactor",
+    "id": null,
+    "total": 6
+  },
+  "workers": {
+    "active": 0,
+    "max": 1
+  },
+  "session": {
+    "number": 2,
+    "started_at": "2026-04-23T08:28:02.014423"
+  },
+  "last_update": "2026-04-23T08:34:02.284539"
+}

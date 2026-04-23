@@ -1,0 +1,39 @@
+{
+  "sandbox": {
+    "enabled": true,
+    "autoAllowBashIfSandboxed": true
+  },
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read(./**)",
+      "Write(./**)",
+      "Edit(./**)",
+      "Glob(./**)",
+      "Grep(./**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st\\.auto-claude\\specs\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st\\.auto-claude\\specs\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\014-replace-in-memory-list-iteration-in-get-trigger-st\\.auto-claude\\specs\\014-replace-in-memory-list-iteration-in-get-trigger-st/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Bash(*)",
+      "WebFetch(*)",
+      "WebSearch(*)",
+      "mcp__context7__resolve-library-id(*)",
+      "mcp__context7__query-docs(*)",
+      "mcp__graphiti-memory__search_nodes(*)",
+      "mcp__graphiti-memory__search_facts(*)",
+      "mcp__graphiti-memory__add_episode(*)",
+      "mcp__graphiti-memory__get_episodes(*)",
+      "mcp__graphiti-memory__get_entity_edge(*)"
+    ]
+  }
+}
