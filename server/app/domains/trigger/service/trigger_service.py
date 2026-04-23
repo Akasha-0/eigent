@@ -355,39 +355,60 @@ class TriggerService:
         trigger = self.session.get(Trigger, trigger_id)
         if not trigger:
             raise ValueError("Trigger not found")
-        
-        # Get execution counts by status
-        executions = self.session.exec(
-            select(TriggerExecution).where(
-                TriggerExecution.trigger_id == trigger_id
-            )
+
+        # Get execution counts by status using SQL COUNT aggregation
+        status_counts = self.session.exec(
+            select(TriggerExecution.status, func.count(TriggerExecution.id))
+            .where(TriggerExecution.trigger_id == trigger_id)
+            .group_by(TriggerExecution.status)
         ).all()
-        
+
+        # Convert to dict for easy access
+        status_count_dict = {status: count for status, count in status_counts}
+
         stats = {
             "trigger_id": trigger_id,
             "name": trigger.name,
             "trigger_type": trigger.trigger_type.value,
             "status": trigger.status.name,
-            "total_executions": len(executions),
-            "successful_executions": len([e for e in executions if e.status == ExecutionStatus.completed]),
-            "failed_executions": len([e for e in executions if e.status == ExecutionStatus.failed]),
-            "pending_executions": len([e for e in executions if e.status == ExecutionStatus.pending]),
-            "cancelled_executions": len([e for e in executions if e.status == ExecutionStatus.cancelled]),
+            "total_executions": sum(status_count_dict.values()),
+            "successful_executions": status_count_dict.get(ExecutionStatus.completed, 0),
+            "failed_executions": status_count_dict.get(ExecutionStatus.failed, 0),
+            "pending_executions": status_count_dict.get(ExecutionStatus.pending, 0),
+            "cancelled_executions": status_count_dict.get(ExecutionStatus.cancelled, 0),
             "last_executed_at": trigger.last_executed_at.isoformat() if trigger.last_executed_at else None,
             "created_at": trigger.created_at.isoformat() if trigger.created_at else None
         }
-        
-        # Calculate average execution time for completed executions
-        completed_executions = [e for e in executions if e.status == ExecutionStatus.completed and e.duration_seconds]
-        if completed_executions:
-            avg_duration = sum(e.duration_seconds for e in completed_executions) / len(completed_executions)
-            stats["average_execution_time_seconds"] = round(avg_duration, 2)
-        
-        # Calculate total tokens used
-        total_tokens = sum(e.tokens_used for e in executions if e.tokens_used)
-        if total_tokens:
-            stats["total_tokens_used"] = total_tokens
-        
+
+        # Calculate average execution time for completed executions using SQL AVG
+        avg_result = self.session.exec(
+            select(func.avg(TriggerExecution.duration_seconds))
+            .where(
+                and_(
+                    TriggerExecution.trigger_id == trigger_id,
+                    TriggerExecution.status == ExecutionStatus.completed,
+                    TriggerExecution.duration_seconds.isnot(None)
+                )
+            )
+        ).one_or_none()
+
+        if avg_result and avg_result[0] is not None:
+            stats["average_execution_time_seconds"] = round(avg_result[0], 2)
+
+        # Calculate total tokens used using SQL SUM
+        tokens_result = self.session.exec(
+            select(func.sum(TriggerExecution.tokens_used))
+            .where(
+                and_(
+                    TriggerExecution.trigger_id == trigger_id,
+                    TriggerExecution.tokens_used.isnot(None)
+                )
+            )
+        ).one_or_none()
+
+        if tokens_result and tokens_result[0] is not None:
+            stats["total_tokens_used"] = tokens_result[0]
+
         return stats
 
 def get_trigger_service(session=None) -> TriggerService:
