@@ -31,9 +31,9 @@ const IS_LOCAL_MODE = import.meta.env.VITE_USE_LOCAL_PROXY === 'true';
 let lock = false;
 
 export default function Login() {
-  // Always call hooks unconditionally - React Hooks must be called in the same order
-  const stackApp = useStackApp();
-  const app = HAS_STACK_KEYS ? stackApp : null;
+  // useStackApp is only called when HAS_STACK_KEYS is true (build-time constant)
+  const stackApp = HAS_STACK_KEYS ? useStackApp() : null;
+  const app = stackApp;
   const {
     setAuth,
     setModelType,

@@ -27,3 +27,9 @@ icon: plug
 ![check_mcp](/docs/images/tools_check.png)
 
 - After configuring your mcp server, you can add it to a Custom Agent.
+
+## Build a Custom Toolkit
+
+Want to create your own toolkit to add custom capabilities to your agents? Check out the step-by-step tutorial:
+
+**[Build a Custom Toolkit](./build-custom-toolkit.md)** — Learn the three patterns for building toolkits: Simple Wrapper, Method Override, and Custom Implementation.

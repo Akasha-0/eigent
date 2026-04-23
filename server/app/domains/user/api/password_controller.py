@@ -23,11 +23,12 @@ from app.model.user.user import UpdatePassword, UserOut
 from app.shared.auth import auth_must
 from app.shared.auth.user_auth import V1UserAuth
 from app.shared.exception import UserException
+from app.shared.middleware.rate_limit import password_rate_limiter
 
 router = APIRouter(tags=["User"])
 
 
-@router.put("/user/update-password", name="update password", response_model=UserOut)
+@router.put("/user/update-password", name="update password", response_model=UserOut, dependencies=[password_rate_limiter])
 def update_password(
     data: UpdatePassword, auth: V1UserAuth = Depends(auth_must), db_session: Session = Depends(session)
 ):

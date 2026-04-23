@@ -1,0 +1,22 @@
+{
+  "project_type": "monorepo",
+  "services": {
+    "server": {
+      "path": "server",
+      "tech_stack": ["python", "fastapi", "sqlmodel", "alembic", "postgresql"],
+      "port": 8000,
+      "dev_command": "cd server && python main.py",
+      "test_command": "cd server && pytest tests/"
+    }
+  },
+  "infrastructure": {
+    "docker": false,
+    "database": "postgresql"
+  },
+  "conventions": {
+    "linter": "ruff",
+    "formatter": "black",
+    "testing": "pytest",
+    "migrations": "alembic"
+  }
+}

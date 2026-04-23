@@ -21,6 +21,7 @@ from sqlalchemy_utils import ChoiceType
 from sqlmodel import Column, Field
 
 from app.core.encrypt import password_hash
+from app.shared.auth.password_policy import validate_password_strength
 from app.model.abstract.model import AbstractModel, DefaultTimes
 
 
@@ -87,6 +88,29 @@ class UpdatePassword(BaseModel):
     password: str
     new_password: str
     re_new_password: str
+
+    @field_validator("new_password", mode="before")
+    def new_password_strength(cls, v):
+        # At least 8 chars, must contain letters and numbers
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isdigit() for c in v) or not any(c.isalpha() for c in v):
+            raise ValueError("Password must contain both letters and numbers")
+        result = validate_password_strength(v)
+        if not result.valid:
+            raise ValueError(result.reason)
+        return v
+
+    @field_validator("re_new_password", mode="before")
+    def passwords_match(cls, v, info):
+        data = info.data
+        if data.get("new_password") and v != data["new_password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+    @field_validator("new_password", mode="after")
+    def new_password_hash(cls, v):
+        return password_hash(v)
 
 
 class RegisterIn(BaseModel):
