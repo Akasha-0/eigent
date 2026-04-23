@@ -88,6 +88,26 @@ class UpdatePassword(BaseModel):
     new_password: str
     re_new_password: str
 
+    @field_validator("new_password", mode="before")
+    def new_password_strength(cls, v):
+        # At least 8 chars, must contain letters and numbers
+        if len(v) < 8:
+            raise ValueError("Password must be at least 8 characters long")
+        if not any(c.isdigit() for c in v) or not any(c.isalpha() for c in v):
+            raise ValueError("Password must contain both letters and numbers")
+        return v
+
+    @field_validator("re_new_password", mode="before")
+    def passwords_match(cls, v, info):
+        data = info.data
+        if data.get("new_password") and v != data["new_password"]:
+            raise ValueError("Passwords do not match")
+        return v
+
+    @field_validator("new_password", mode="after")
+    def new_password_hash(cls, v):
+        return password_hash(v)
+
 
 class RegisterIn(BaseModel):
     email: EmailStr
