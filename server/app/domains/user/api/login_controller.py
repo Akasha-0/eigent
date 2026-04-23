@@ -36,7 +36,7 @@ from app.shared.middleware.rate_limit import login_rate_limiter
 router = APIRouter(prefix="/user", tags=["V1 Login"])
 
 
-@router.post("/dev_login", name="dev login (Swagger only)", include_in_schema=True)
+@router.post("/dev_login", name="dev login (Swagger only)", include_in_schema=True, dependencies=[login_rate_limiter])
 async def dev_login(username: str | None = Form(default=None), password: str | None = Form(default=None)):
     """Debug-only login for Swagger Authorize. Accepts OAuth2 password form."""
     if env("debug", "") != "on":
@@ -44,7 +44,7 @@ async def dev_login(username: str | None = Form(default=None), password: str | N
     return {"access_token": create_access_token(1), "token_type": "bearer"}
 
 
-@router.post("/auto-login", name="auto login for local mode")
+@router.post("/auto-login", name="auto login for local mode", dependencies=[login_rate_limiter])
 async def auto_login(db_session: Session = Depends(session)) -> LoginResponse:
     """Auto login for fully local mode. Returns most recently active user or creates default."""
     user = User.by(
