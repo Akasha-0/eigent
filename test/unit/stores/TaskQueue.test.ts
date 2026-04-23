@@ -19,7 +19,7 @@
  */
 
 import { TaskQueue } from '@/store/handlers/TaskQueue';
-import type { Task } from '@/types/chatbox';
+import type { Task } from '@/store/handlers/types';
 import { beforeEach, describe, expect, it } from 'vitest';
 
 // ============================================================================

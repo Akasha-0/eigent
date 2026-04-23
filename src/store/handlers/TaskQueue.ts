@@ -24,15 +24,14 @@
 // TODO: Implementar extração completa do TaskQueue
 // Este é um placeholder que será implementado na Story 1.3
 
-// ============================================================================
-// LOCAL TYPES (Task/TaskInfo not exported from @/types/chatbox)
-// ============================================================================
+import type { TaskInfo } from '@/types/handlers';
 
-interface TaskInfo {
-  id: string;
-  content: string;
-  status?: string;
-}
+// Re-export for external use
+export type { TaskInfo } from '@/types/handlers';
+
+// ============================================================================
+// LOCAL TYPES (Task not in handlers.ts)
+// ============================================================================
 
 interface Task {
   id: string;

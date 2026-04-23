@@ -20,49 +20,15 @@
  *
  * @module stores/handlers/MessageHandler
  */
-
 import { generateUniqueId } from '@/lib';
+import type { Message, TaskInfo } from '@/types/handlers';
+
+// Re-export for external use
+export type { Message, TaskInfo } from '@/types/handlers';
 
 // ============================================================================
-// GLOBAL TYPES (from chatbox.d.ts - redeclared here for module scope)
+// LOCAL TYPES (not in handlers.ts)
 // ============================================================================
-
-interface TaskInfo {
-  id: string;
-  content: string;
-  status?: string;
-  agent?: Agent;
-  terminal?: string[];
-  fileList?: FileInfo[];
-  project_id?: string;
-  toolkits?: ToolKit[];
-  failure_count?: number;
-  reAssignTo?: string;
-}
-
-interface ToolKit {
-  toolkitName: string;
-  toolkitMethods: string;
-  message: string;
-  toolkitStatus?: string;
-}
-
-interface FileInfo {
-  name: string;
-  type: string;
-  path: string;
-  content?: string;
-  agent_id?: string;
-  task_id?: string;
-  project_id?: string;
-  isFolder?: boolean;
-  relativePath?: string;
-}
-
-interface File {
-  fileName: string;
-  filePath: string;
-}
 
 interface Agent {
   agent_id: string;
@@ -79,34 +45,35 @@ interface AgentMessage {
   status?: string;
 }
 
-interface Message {
-  id: string;
-  role: 'user' | 'agent';
-  content: string;
-  step?: string;
+interface File {
+  fileName: string;
+  filePath: string;
+}
+
+interface FileInfo {
+  name: string;
+  type: string;
+  path: string;
+  content?: string;
   agent_id?: string;
-  isConfirm?: boolean;
-  taskType?: 1 | 2 | 3;
-  taskInfo?: TaskInfo[];
-  taskRunning?: TaskInfo[];
-  summaryTask?: string;
-  taskAssigning?: Agent[];
-  showType?: 'tree' | 'list';
-  rePort?: unknown;
-  fileList?: FileInfo[];
   task_id?: string;
-  summary?: string;
-  agent_name?: string;
-  attaches?: File[];
+  project_id?: string;
+  isFolder?: boolean;
+  relativePath?: string;
+  icon?: unknown;
+}
+
+interface ToolKit {
+  toolkitName: string;
+  toolkitMethods: string;
+  message: string;
+  toolkitStatus?: string;
 }
 
 interface Task {
   messages: Message[];
   [key: string]: unknown;
 }
-
-// Re-export for external use
-export type { Agent, Message, TaskInfo };
 
 // ============================================================================
 // TYPES

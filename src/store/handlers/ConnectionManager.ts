@@ -19,21 +19,59 @@
  * Este é um placeholder para permitir o build.
  */
 
-import type {
-  ConnectionStatus,
-  ConnectionState,
-  ConnectionEvent,
-  ConnectionConfig,
-} from '@/types/handlers';
+type ConnectionStatus = 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'error';
 
-export type { ConnectionStatus, ConnectionState, ConnectionEvent, ConnectionConfig } from '@/types/handlers';
+type ConnectionEvent =
+  | 'statusChange'
+  | 'message'
+  | 'error'
+  | 'close'
+  | 'open'
+  | 'reconnecting';
+
+interface ConnectionConfig {
+  url: string;
+  taskId?: string;
+  reconnect?: boolean;
+  timeout?: number;
+}
 
 /**
  * ConnectionManager responsável por gerenciar conexões WebSocket/streaming
+ * Implementação placeholder - funcionalidades completas a serem adicionadas
  */
 export class ConnectionManager {
   private status: ConnectionStatus = 'disconnected';
   private listeners: Map<ConnectionEvent, Set<(...args: unknown[]) => void>> = new Map();
+  private static _connections: Map<string, unknown> = new Map();
+
+  /**
+   * Verificar se existe conexão ativa para taskId
+   */
+  static hasConnection(taskId: string): boolean {
+    return ConnectionManager._connections.has(taskId);
+  }
+
+  /**
+   * Obter todas conexões ativas
+   */
+  static getActiveConnections(): Map<string, unknown> {
+    return ConnectionManager._connections;
+  }
+
+  /**
+   * Fechar conexão específica
+   */
+  static closeConnection(taskId: string): void {
+    ConnectionManager._connections.delete(taskId);
+  }
+
+  /**
+   * Fechar todas conexões
+   */
+  static closeAllConnections(): void {
+    ConnectionManager._connections.clear();
+  }
 
   /**
    * Conectar ao servidor

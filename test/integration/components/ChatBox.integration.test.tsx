@@ -126,7 +126,7 @@ describe('ChatBox Integration Tests - Different ChatStore Configurations', () =>
         });
         chatStore.addMessages(taskId, {
           id: 'assistant-msg-1',
-          role: 'assistant',
+          role: 'agent',
           content: '',
           step: 'to_sub_tasks',
           data: {
@@ -183,7 +183,7 @@ describe('ChatBox Integration Tests - Different ChatStore Configurations', () =>
         });
         chatStore.addMessages(taskId, {
           id: 'assistant-1',
-          role: 'assistant',
+          role: 'agent',
           content: 'I am doing well, thank you! layout.how-can-i-help-you?',
           attaches: [],
         });
@@ -267,7 +267,7 @@ describe('ChatBox Integration Tests - Different ChatStore Configurations', () =>
         });
         chatStore.addMessages(taskId, {
           id: 'assistant-1',
-          role: 'assistant',
+          role: 'agent',
           content: 'I have generated the report for you.',
           step: 'end',
           fileList: [
@@ -324,7 +324,7 @@ describe('ChatBox Integration Tests - Different ChatStore Configurations', () =>
         });
         chatStore.addMessages(taskId, {
           id: 'assistant-1',
-          role: 'assistant',
+          role: 'agent',
           content: 'Which option would you prefer: A or B?',
           agent_name: 'decision-agent',
         });

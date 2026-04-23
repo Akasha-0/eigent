@@ -12,6 +12,8 @@
 // limitations under the License.
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
+/// <reference types="vitest" />
+import { describe, it, expect } from 'vitest';
 import {
   buildVersionedReleaseBaseUrl,
   getGitHubReleaseChannel,

@@ -37,7 +37,7 @@ import {
   upsertStreamingMessage,
   validateMessage,
 } from '@/store/handlers/MessageHandler';
-import type { Message, Task } from '@/types/chatbox';
+import type { Message, Task } from '@/types/handlers';
 import { describe, expect, it } from 'vitest';
 
 // ============================================================================
