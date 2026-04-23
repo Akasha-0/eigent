@@ -304,7 +304,49 @@ class RedisSessionManager:
                 "error": str(e)
             })
             return False
-    
+
+    def _delivery_channel_key(self, execution_id: str) -> str:
+        """Build the Redis key for a delivery confirmation channel.
+
+        Args:
+            execution_id: The execution ID.
+
+        Returns:
+            Redis key string.
+        """
+        return f"{self.DELIVERY_CONFIRMATION_PREFIX}{execution_id}"
+
+    def confirm_delivery_push(self, execution_id: str, session_id: str) -> bool:
+        """Push a delivery confirmation via Redis pub/sub channel.
+
+        Args:
+            execution_id: The execution ID that was delivered.
+            session_id: The session ID that received the message.
+
+        Returns:
+            True if published successfully, False otherwise.
+        """
+        try:
+            channel = self._delivery_channel_key(execution_id)
+            payload = json.dumps({
+                "execution_id": execution_id,
+                "session_id": session_id,
+                "delivered_at": datetime.now(timezone.utc).isoformat()
+            })
+            self.client.publish(channel, payload)
+            logger.debug("Delivery push published", extra={
+                "execution_id": execution_id,
+                "session_id": session_id
+            })
+            return True
+        except Exception as e:
+            logger.error("Failed to publish delivery push", extra={
+                "execution_id": execution_id,
+                "session_id": session_id,
+                "error": str(e)
+            })
+            return False
+
     def confirm_delivery(self, execution_id: str, session_id: str) -> bool:
         """Confirm that a message was delivered to a WebSocket client.
         
