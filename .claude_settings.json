@@ -19,21 +19,16 @@
       "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
       "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
       "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
-      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\**)",
-      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\**)",
-      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\**)",
-      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\**)",
-      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
       "Bash(*)",
       "WebFetch(*)",
       "WebSearch(*)",
       "mcp__context7__resolve-library-id(*)",
-      "mcp__context7__query-docs(*)",
-      "mcp__graphiti-memory__search_nodes(*)",
-      "mcp__graphiti-memory__search_facts(*)",
-      "mcp__graphiti-memory__add_episode(*)",
-      "mcp__graphiti-memory__get_episodes(*)",
-      "mcp__graphiti-memory__get_entity_edge(*)"
+      "mcp__context7__query-docs(*)"
     ]
   }
 }
