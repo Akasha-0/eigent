@@ -3,23 +3,23 @@
   "spec": "013-replace-redis-polling-loop-in-wait-for-delivery-wi",
   "state": "building",
   "subtasks": {
-    "completed": 1,
+    "completed": 3,
     "total": 7,
     "in_progress": 1,
     "failed": 0
   },
   "phase": {
-    "current": "Add async blocking delivery wait method",
+    "current": "Migrate wait_for_delivery callers to async version",
     "id": null,
-    "total": 3
+    "total": 2
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
-    "number": 3,
+    "number": 5,
     "started_at": "2026-04-23T08:28:02.014423"
   },
-  "last_update": "2026-04-23T08:36:22.503456"
+  "last_update": "2026-04-23T08:43:32.837605"
 }
