@@ -3493,30 +3493,6 @@ const chatStore = (initial?: Partial<ChatStore>) =>
     },
   }));
 
-const filterMessage = (message: AgentMessage) => {
-  if (message.data.toolkit_name?.includes('Search ')) {
-    message.data.toolkit_name = 'Search Toolkit';
-  }
-  if (message.data.method_name?.includes('search')) {
-    message.data.method_name = 'search';
-  }
-
-  message.data.message = normalizeToolkitMessage(message.data.message);
-
-  if (message.data.toolkit_name === 'Note Taking Toolkit') {
-    message.data.message = message.data.message
-      .replace(/content='/g, '')
-      .replace(/', update=False/g, '')
-      .replace(/', update=True/g, '');
-  }
-  if (message.data.method_name === 'scrape') {
-    message.data.message = message.data.message
-      .replace(/url='/g, '')
-      .slice(0, -1);
-  }
-  return message;
-};
-
 export const useChatStore = chatStore;
 
 /** Create a new chat store instance. Use this in non-React code (e.g. projectStore). */
