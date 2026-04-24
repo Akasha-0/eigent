@@ -1261,100 +1261,6 @@ const chatStore = (initial?: Partial<ChatStore>) =>
 
             return;
           }
-          // Task State
-          if (agentMessages.step === AgentStep.TASK_STATE) {
-            const { state, task_id, result, failure_count } =
-              agentMessages.data;
-            if (!state && !task_id) return;
-
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            const targetTaskIndex = taskRunning.findIndex(
-              (task) => task.id === task_id
-            );
-            const targetTaskAssigningIndex = taskAssigning.findIndex((agent) =>
-              agent.tasks.find(
-                (task: TaskInfo) => task.id === task_id && !task.reAssignTo
-              )
-            );
-            if (targetTaskAssigningIndex !== -1) {
-              const taskIndex = taskAssigning[
-                targetTaskAssigningIndex
-              ].tasks.findIndex((task: TaskInfo) => task.id === task_id);
-              taskAssigning[targetTaskAssigningIndex].tasks[taskIndex].status =
-                state === 'DONE' ? TaskStatus.COMPLETED : TaskStatus.FAILED;
-              taskAssigning[targetTaskAssigningIndex].tasks[
-                taskIndex
-              ].failure_count = failure_count || 0;
-
-              // destroy webview
-              tasks[currentTaskId].taskAssigning = tasks[
-                currentTaskId
-              ].taskAssigning.map((item) => {
-                if (
-                  item.type === 'browser_agent' &&
-                  item.activeWebviewIds?.length &&
-                  item.activeWebviewIds?.length > 0
-                ) {
-                  let removeList: number[] = [];
-                  item.activeWebviewIds.map((webview, index) => {
-                    if (webview.processTaskId === task_id) {
-                      window.electronAPI.webviewDestroy(webview.id);
-                      removeList.push(index);
-                    }
-                  });
-                  removeList.forEach((webviewIndex) => {
-                    item.activeWebviewIds?.splice(webviewIndex, 1);
-                  });
-                }
-                return item;
-              });
-
-              if (result && result !== '') {
-                let targetResult = result.replace(
-                  taskAssigning[targetTaskAssigningIndex].agent_id,
-                  taskAssigning[targetTaskAssigningIndex].name
-                );
-                taskAssigning[targetTaskAssigningIndex].tasks[
-                  taskIndex
-                ].report = targetResult;
-                if (state === 'FAILED' && failure_count && failure_count >= 3) {
-                  addMessages(currentTaskId, {
-                    id: generateUniqueId(),
-                    role: 'agent',
-                    content: targetResult,
-                    step: AgentStep.FAILED,
-                  });
-                }
-              }
-            }
-            if (targetTaskIndex !== -1) {
-              console.log('targetTaskIndex', targetTaskIndex, state);
-              taskRunning[targetTaskIndex].status =
-                state === 'DONE' ? TaskStatus.COMPLETED : TaskStatus.FAILED;
-            }
-            setTaskRunning(currentTaskId, taskRunning);
-            setTaskAssigning(currentTaskId, taskAssigning);
-            return;
-          }
-          /**  New Task State from queue
-           * @deprecated
-           * Side effect handled on top of the message handler
-           */
-          if (agentMessages.step === AgentStep.NEW_TASK_STATE) {
-            const {
-              task_id,
-              content,
-              state: _state,
-              result: _result,
-              failure_count: _failure_count,
-            } = agentMessages.data;
-            //new chatStore logic is handled along side "confirmed" event
-            console.log(
-              `Received new task: ${task_id} with content: ${content}`
-            );
-            return;
-          }
           // Task operations (Task State, Assign Task) - use TaskHandler
           const taskStore: TaskHandlerStore = {
             currentTaskId,
@@ -1370,6 +1276,8 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             getTokens,
             clearStreamingDecomposeText,
             handleConfirmTask,
+            webviewDestroy: (id: string) =>
+              window.electronAPI.webviewDestroy(id),
           };
 
           const taskContext = { type, historyId, project_id };
@@ -1379,176 +1287,10 @@ const chatStore = (initial?: Partial<ChatStore>) =>
               taskStore,
               agentMessages,
               autoConfirmTimers,
-              taskContext
+              taskContext,
+              (id: string) => window.electronAPI.webviewDestroy(id)
             )
           ) {
-            return;
-          }
-          // Assign task
-          if (agentMessages.step === AgentStep.ASSIGN_TASK) {
-            if (
-              !agentMessages.data?.assignee_id ||
-              !agentMessages.data?.task_id
-            )
-              return;
-
-            const {
-              assignee_id,
-              task_id,
-              content = '',
-              state: taskState,
-              failure_count,
-            } = agentMessages.data as any;
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-            let taskInfo = [...tasks[currentTaskId].taskInfo];
-
-            // Find the index of the agent corresponding to assignee_id
-            const assigneeAgentIndex = taskAssigning!.findIndex(
-              (agent: Agent) => agent.agent_id === assignee_id
-            );
-            // Find task corresponding to task_id
-            const task = taskInfo!.find(
-              (task: TaskInfo) => task.id === task_id
-            );
-
-            const taskRunningIndex = taskRunning!.findIndex(
-              (task: TaskInfo) => task.id === task_id
-            );
-
-            // Skip tasks with empty content only if the task doesn't exist in taskInfo
-            // If task exists in taskInfo, we should still process status updates
-            if ((!content || content.trim() === '') && !task) {
-              console.warn(
-                `Skipping task ${task_id} with empty content and not found in taskInfo`
-              );
-              return;
-            }
-
-            if (assigneeAgentIndex === -1) return;
-            const taskAgent = taskAssigning![assigneeAgentIndex];
-
-            // Find the agent to reassign the task to
-            const target = taskAssigning
-              .map((agent, agentIndex) => {
-                if (agent.agent_id === assignee_id) return null;
-
-                const taskIndex = agent.tasks.findIndex(
-                  (task: TaskInfo) => task.id === task_id && !task.reAssignTo
-                );
-
-                return taskIndex !== -1 ? { agentIndex, taskIndex } : null;
-              })
-              .find(Boolean);
-
-            if (target) {
-              const { agentIndex, taskIndex } = target;
-              const agentName = taskAssigning.find(
-                (agent: Agent) => agent.agent_id === assignee_id
-              )?.name;
-              if (agentName !== taskAssigning[agentIndex].name) {
-                taskAssigning[agentIndex].tasks[taskIndex].reAssignTo =
-                  agentName;
-              }
-            }
-
-            // Clear logs from the assignee agent that are related to this task
-            // This prevents logs from previous attempts appearing in the reassigned task
-            // This needs to happen whether it's a reassignment to a different agent or a retry with the same agent
-            if (
-              taskState !== TaskStatus.WAITING &&
-              failure_count &&
-              failure_count > 0
-            ) {
-              taskAssigning[assigneeAgentIndex].log = taskAssigning[
-                assigneeAgentIndex
-              ].log.filter((log) => log.data.process_task_id !== task_id);
-            }
-
-            // Handle task assignment to taskAssigning based on state
-            if (taskState === TaskStatus.WAITING) {
-              if (
-                !taskAssigning[assigneeAgentIndex].tasks.find(
-                  (item) => item.id === task_id
-                )
-              ) {
-                taskAssigning[assigneeAgentIndex].tasks.push(
-                  task ?? { id: task_id, content, status: TaskStatus.WAITING }
-                );
-              }
-              setTaskAssigning(currentTaskId, [...taskAssigning]);
-            }
-            // The following logic is for when the task actually starts executing (running)
-            else if (taskAssigning && taskAssigning[assigneeAgentIndex]) {
-              // Check if task already exists in the agent's task list
-              const existingTaskIndex = taskAssigning[
-                assigneeAgentIndex
-              ].tasks.findIndex((item) => item.id === task_id);
-
-              if (existingTaskIndex !== -1) {
-                // Task already exists, update its status
-                taskAssigning[assigneeAgentIndex].tasks[
-                  existingTaskIndex
-                ].status = TaskStatus.RUNNING;
-                if (failure_count !== 0) {
-                  taskAssigning[assigneeAgentIndex].tasks[
-                    existingTaskIndex
-                  ].failure_count = failure_count;
-                }
-              } else {
-                // Task doesn't exist, add it
-                let taskTemp = null;
-                if (task) {
-                  taskTemp = JSON.parse(JSON.stringify(task));
-                  taskTemp.failure_count = 0;
-                  taskTemp.status = TaskStatus.RUNNING;
-                  taskTemp.toolkits = [];
-                  taskTemp.report = '';
-                }
-                taskAssigning[assigneeAgentIndex].tasks.push(
-                  taskTemp ?? {
-                    id: task_id,
-                    content,
-                    status: TaskStatus.RUNNING,
-                  }
-                );
-              }
-            }
-
-            // Only update or add to taskRunning, never duplicate
-            if (taskRunningIndex === -1) {
-              // Task not in taskRunning, add it
-              if (task) {
-                task.status =
-                  taskState === TaskStatus.WAITING
-                    ? TaskStatus.WAITING
-                    : TaskStatus.RUNNING;
-              }
-              taskRunning!.push(
-                task ?? {
-                  id: task_id,
-                  content,
-                  status:
-                    taskState === TaskStatus.WAITING
-                      ? TaskStatus.WAITING
-                      : TaskStatus.RUNNING,
-                  agent: JSON.parse(JSON.stringify(taskAgent)),
-                }
-              );
-            } else {
-              // Task already in taskRunning, update it
-              taskRunning![taskRunningIndex] = {
-                ...taskRunning![taskRunningIndex],
-                status:
-                  taskState === TaskStatus.WAITING
-                    ? TaskStatus.WAITING
-                    : TaskStatus.RUNNING,
-                agent: JSON.parse(JSON.stringify(taskAgent)),
-              };
-            }
-            setTaskRunning(currentTaskId, [...taskRunning]);
-            setTaskAssigning(currentTaskId, [...taskAssigning]);
-
             return;
           }
           // Activate Toolkit
@@ -1618,7 +1360,7 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             return;
           }
 
-          // Handle ADD_TASK and REMOVE_TASK via TaskHandler
+          // Handle ADD_TASK, REMOVE_TASK, TO_SUB_TASKS, TASK_STATE, ASSIGN_TASK via TaskHandler
           const taskHandlerStore: TaskHandlerStore = {
             currentTaskId,
             tasks,
@@ -1633,6 +1375,8 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             getTokens: getTokens as (taskId: string) => number,
             clearStreamingDecomposeText,
             handleConfirmTask,
+            webviewDestroy: (id: string) =>
+              window.electronAPI.webviewDestroy(id),
           };
 
           if (
@@ -1640,7 +1384,8 @@ const chatStore = (initial?: Partial<ChatStore>) =>
               taskHandlerStore,
               agentMessages,
               autoConfirmTimers,
-              { type, historyId, project_id }
+              { type, historyId, project_id },
+              (id: string) => window.electronAPI.webviewDestroy(id)
             )
           ) {
             return;

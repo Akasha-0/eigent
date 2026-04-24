@@ -57,6 +57,7 @@ export interface TaskHandlerStore {
     taskId: string,
     type?: string
   ) => void;
+  webviewDestroy?: (id: string) => void;
 }
 
 // Auto-confirm timer type
@@ -316,9 +317,10 @@ export function handleTaskState(
     const agent = taskAssigning[targetTaskAssigningIndex];
     if (agent.type === 'browser_agent' && agent.activeWebviewIds?.length) {
       const removeList: number[] = [];
+      const destroyFn = webviewDestroy ?? store.webviewDestroy;
       agent.activeWebviewIds.forEach((webview, index) => {
-        if (webview.processTaskId === task_id && webviewDestroy) {
-          webviewDestroy(webview.id);
+        if (webview.processTaskId === task_id && destroyFn) {
+          destroyFn(webview.id);
           removeList.push(index);
         }
       });
