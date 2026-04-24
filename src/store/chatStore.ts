@@ -43,11 +43,18 @@ import { createStore } from 'zustand';
 import { getAuthStore, getWorkerList } from './authStore';
 import {
   ConnectionManager,
+  filterMessage,
   addMessages as handlerAddMessages,
   deleteMessage as handlerDeleteMessage,
   setMessages as handlerSetMessages,
   updateMessage as handlerUpdateMessage,
+  normalizeToolkitMessage,
+  resolveProcessTaskIdForToolkitEvent,
 } from './handlers';
+import {
+  collectTaskUploadFiles,
+  uploadTaskFiles,
+} from './handlers/UploadHandler';
 import { usePageTabStore } from './pageTabStore';
 import { useProjectStore } from './projectStore';
 
@@ -372,16 +379,6 @@ const compatCloseConnection = (taskId: string) =>
   ConnectionManager.closeConnection(taskId);
 const compatCloseAllConnections = () => ConnectionManager.closeAllConnections();
 
-const normalizeToolkitMessage = (value: unknown) => {
-  if (typeof value === 'string') return value;
-  if (value == null) return '';
-  try {
-    return JSON.stringify(value);
-  } catch {
-    return String(value);
-  }
-};
-
 /** Persist subtask edits to backend via PUT /task/{project_id}. */
 const persistSubtaskEdits = (taskInfo: TaskInfo[]) => {
   const projectId = useProjectStore.getState().activeProjectId;
@@ -391,30 +388,6 @@ const persistSubtaskEdits = (taskInfo: TaskInfo[]) => {
   fetchPut(`/task/${projectId}`, { task: nonEmpty }).catch((err) =>
     console.error('Failed to persist subtask edits:', err)
   );
-};
-
-const resolveProcessTaskIdForToolkitEvent = (
-  tasksById: Record<string, Task>,
-  currentTaskId: string,
-  agentName: string | undefined,
-  processTaskId: unknown
-) => {
-  const direct = typeof processTaskId === 'string' ? processTaskId : '';
-  if (direct) return direct;
-
-  const running = tasksById[currentTaskId]?.taskRunning ?? [];
-  // Prefer a task owned by the same agent
-  const match = running.findLast(
-    (t: any) =>
-      typeof t?.id === 'string' &&
-      t.id &&
-      (agentName ? t.agent?.type === agentName : true)
-  );
-  if (match?.id) return match.id as string;
-  // Fallback to the latest running task id
-  const last = running.at(-1);
-  if (typeof last?.id === 'string' && last.id) return last.id;
-  return '';
 };
 // Throttle streaming decompose text updates to prevent excessive re-renders
 const streamingDecomposeTextBuffer: Record<string, string> = {};

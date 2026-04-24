@@ -14,12 +14,10 @@
 
 /**
  * Shared Types for Store Handlers
- * 
+ *
  * Tipos centralizados para MessageHandler, ConnectionManager e TaskQueue.
  * Evita duplicação de interfaces entre os módulos.
  */
-
-import type { ChatTaskStatusType } from './constants';
 
 // ============================================================================
 // MESSAGE TYPES
@@ -83,6 +81,7 @@ export interface TaskInfo {
 }
 
 export interface ToolKit {
+  toolkitId?: string;
   toolkitName: string;
   toolkitMethods: string;
   message: string;
@@ -108,7 +107,11 @@ export interface AgentMessage {
 // CONNECTION TYPES
 // ============================================================================
 
-export type ConnectionStatus = 'connecting' | 'connected' | 'disconnected' | 'error';
+export type ConnectionStatus =
+  | 'connecting'
+  | 'connected'
+  | 'disconnected'
+  | 'error';
 
 export interface ConnectionState {
   status: ConnectionStatus;

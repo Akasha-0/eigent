@@ -40,26 +40,56 @@ export {
   validateMessage,
 } from './MessageHandler';
 
+export {
+  handleTerminal,
+  handleWriteFile,
+  processFileSteps,
+  type FileHandlerStore,
+} from './FileHandler';
+
+export {
+  handleAsk,
+  handleNotice,
+  processSSEMessageSteps,
+  type SSEMessageHandlerStore,
+} from './SSEMessageHandler';
+
 export { ConnectionManager, connectionManager } from './ConnectionManager';
 
 // Re-export types from central types file
 export type {
-  Message,
-  TaskInfo,
-  File,
-  FileInfo,
+  AddMessageInput,
   Agent,
   AgentMessage,
-  ToolKit,
-  ConnectionStatus,
-  ConnectionState,
-  ConnectionEvent,
   ConnectionConfig,
-  TaskPriority,
-  QueuedTask,
-  TaskQueueConfig,
+  ConnectionEvent,
+  ConnectionState,
+  ConnectionStatus,
+  File,
+  FileInfo,
+  Message,
   MessageOperationResult,
-  AddMessageInput,
-  UpdateMessageInput,
+  QueuedTask,
   SetMessagesInput,
+  TaskInfo,
+  TaskPriority,
+  TaskQueueConfig,
+  ToolKit,
+  UpdateMessageInput,
 } from '@/types/handlers';
+
+export {
+  filterMessage,
+  handleActivateToolkit,
+  handleDeactivateToolkit,
+  normalizeToolkitMessage,
+  resolveProcessTaskIdForToolkitEvent,
+} from './ToolkitHandler';
+
+export {
+  cleanupSSEController,
+  handleSSEClose,
+  handleSSEError,
+  handleTriggerExecutionStatusUpdate,
+  isConnectionError,
+} from './ErrorHandler';
