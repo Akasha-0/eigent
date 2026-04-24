@@ -50,11 +50,13 @@ export {
 export {
   handleAsk,
   handleBudgetNotEnough,
+  handleConfirmed,
   handleContextTooLong,
   handleError,
   handleNotice,
   processSSEMessageErrorSteps,
   processSSEMessageSteps,
+  type ConfirmedHandlerDeps,
   type SSEMessageErrorHandlerStore,
   type SSEMessageHandlerStore,
 } from './SSEMessageHandler';
@@ -116,3 +118,5 @@ export {
   processTaskSteps,
   type TaskHandlerStore,
 } from './TaskHandler';
+
+export { handleEnd, type EndHandlerDeps } from './EndHandler';

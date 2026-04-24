@@ -20,7 +20,8 @@
 
 import { generateUniqueId } from '@/lib';
 import { proxyUpdateTriggerExecution } from '@/service/triggerApi';
-import { ExecutionStatus } from '@/types';
+import type { ExecutionStatus } from '@/types';
+import type { ChatTaskStatusType } from '@/types/constants';
 import { AgentStatusValue, AgentStep, ChatTaskStatus } from '@/types/constants';
 import type {
   Agent,
@@ -50,6 +51,205 @@ export interface SSEMessageHandlerStore {
   setActiveAskList: (taskId: string, askList: Message[]) => void;
   setActiveAsk: (taskId: string, agent: string) => void;
   setIsPending: (taskId: string, pending: boolean) => void;
+}
+
+/**
+ * Dependencies needed for CONFIRMED handler
+ */
+export interface ConfirmedHandlerDeps {
+  project_id?: string;
+  messageContent?: string;
+  type?: string;
+  delayTime?: number;
+  email?: string;
+  apiModel: {
+    model_platform?: string;
+    model_type?: string;
+    api_key?: string;
+    api_url?: string;
+    extra_params?: Record<string, unknown>;
+  };
+  systemLanguage?: string;
+  skipFirstConfirm: { current: boolean };
+  autoConfirmTimers: Record<string, ReturnType<typeof setTimeout>>;
+  ttftTracking: Record<
+    string,
+    { confirmedAt: number; firstTokenLogged: boolean }
+  >;
+  projectStore: {
+    activeProjectId: string | null;
+    appendInitChatStore: (
+      projectId: string,
+      nextTaskId?: string
+    ) => { taskId: string; chatStore: ConfirmedChatStore } | null;
+    setHistoryId: (projectId: string, historyId: number) => void;
+  };
+  updateLockedReferences: (
+    chatStore: ConfirmedChatStore,
+    taskId: string
+  ) => void;
+  targetChatStore: ConfirmedChatStore;
+  generateUniqueId: () => string;
+  addWorkers?: unknown[];
+  browser_port?: string;
+  cdp_browsers?: unknown;
+  envPath?: string;
+  searchConfig?: unknown;
+  proxyFetchPost: (
+    url: string,
+    data: Record<string, unknown>
+  ) => Promise<{ id: number }>;
+  getCurrentChatStore: () => ConfirmedChatStore;
+  setStatus: (taskId: string, status: ChatTaskStatusType) => void;
+  setHasWaitComfirm: (taskId: string, value: boolean) => void;
+}
+
+/**
+ * Minimal chat store interface for handler usage
+ */
+interface ConfirmedChatStore {
+  getState: () => {
+    activeTaskId: string | null;
+    nextTaskId: string | null;
+    tasks: Record<
+      string,
+      {
+        messages: Message[];
+        attaches: File[];
+        nextExecutionId?: string;
+      }
+    >;
+    setIsPending: (taskId: string, pending: boolean) => void;
+    setExecutionId: (taskId: string, executionId: string) => void;
+    setDelayTime: (taskId: string, delayTime: number) => void;
+    setType: (taskId: string, type: string) => void;
+    addMessages: (taskId: string, message: Message) => void;
+    removeMessage: (taskId: string, messageId: string) => void;
+  };
+  removeMessage: (taskId: string, messageId: string) => void;
+}
+
+/**
+ * Handles CONFIRMED step from SSE messages
+ */
+export async function handleConfirmed(
+  deps: ConfirmedHandlerDeps,
+  agentMessages: AgentMessage,
+  currentTaskId: string
+): Promise<boolean> {
+  if (agentMessages.step !== AgentStep.CONFIRMED) {
+    return false;
+  }
+
+  const { question } = agentMessages.data as { question?: string };
+  const shouldCreateNewChat =
+    deps.project_id && (question || deps.messageContent);
+
+  // All except first confirmed event to reuse the existing chatStore
+  if (shouldCreateNewChat && !deps.skipFirstConfirm.current) {
+    /**
+     * For Tasks where appended to existing project by
+     * reusing same projectId. Need to create new chatStore
+     * as it has been skipped earlier in startTask.
+     */
+    const nextTaskId = deps.targetChatStore.getState().nextTaskId || undefined;
+    const newChatResult = deps.projectStore.appendInitChatStore(
+      deps.project_id || deps.projectStore.activeProjectId!,
+      nextTaskId
+    );
+
+    if (newChatResult) {
+      const { taskId: newTaskId, chatStore: newChatStore } = newChatResult;
+
+      // Update references for both scenarios
+      deps.updateLockedReferences(newChatStore, newTaskId);
+      newChatStore.getState().setIsPending(newTaskId, false);
+
+      // If nextExecutionId exists, pass it to new task
+      const previousTask = deps.targetChatStore.getState().tasks[currentTaskId];
+      if (previousTask?.nextExecutionId) {
+        newChatStore
+          .getState()
+          .setExecutionId(newTaskId, previousTask.nextExecutionId);
+      }
+
+      if (deps.type === 'replay') {
+        newChatStore
+          .getState()
+          .setDelayTime(newTaskId, deps.delayTime as number);
+        newChatStore.getState().setType(newTaskId, 'replay');
+      }
+
+      const lastMessage = previousTask?.messages.at(-1);
+      if (lastMessage?.role === 'user' && lastMessage?.id) {
+        deps.targetChatStore.removeMessage(currentTaskId, lastMessage.id);
+      }
+
+      const attachesForNewMessage =
+        lastMessage?.role === 'user' && lastMessage?.attaches?.length
+          ? lastMessage.attaches
+          : [...(previousTask?.attaches || [])];
+
+      // Trick: by the time the question is retrieved from event,
+      // the last message from previous chatStore is at display
+      newChatStore.getState().addMessages(newTaskId, {
+        id: deps.generateUniqueId(),
+        role: 'user',
+        content: question || (deps.messageContent as string),
+        attaches: attachesForNewMessage,
+      });
+      console.log('[NEW CHATSTORE] Created for ', deps.project_id);
+
+      // Create a new history point
+      if (!deps.type) {
+        const obj = {
+          project_id: deps.project_id,
+          task_id: newTaskId,
+          user_id: deps.email,
+          question:
+            question ||
+            deps.messageContent ||
+            (deps.targetChatStore.getState().tasks[newTaskId]?.messages[0]
+              ?.content ??
+              ''),
+          language: deps.systemLanguage,
+          model_platform: deps.apiModel.model_platform,
+          model_type: deps.apiModel.model_type,
+          api_url: deps.apiModel.api_url,
+          max_retries: 3,
+          file_save_path: 'string',
+          installed_mcp: 'string',
+          status: 1,
+          tokens: 0,
+        };
+        await deps.proxyFetchPost(`/api/v1/chat/history`, obj).then((res) => {
+          const historyId = res.id;
+          if (deps.project_id && historyId)
+            deps.projectStore.setHistoryId(deps.project_id, historyId);
+        });
+      }
+    }
+  } else {
+    // NOTE: Triggered only with first "confirmed" in the project
+    // Handle Original cases - with old chatStore
+    deps.setStatus(currentTaskId, ChatTaskStatus.PENDING);
+    deps.setHasWaitComfirm(currentTaskId, false);
+  }
+
+  // Enable it for the rest of current SSE session
+  deps.skipFirstConfirm.current = false;
+
+  // Record confirmed time for TTFT tracking
+  const ttftTaskId = deps.targetChatStore.getState().activeTaskId;
+  deps.ttftTracking[ttftTaskId] = {
+    confirmedAt: performance.now(),
+    firstTokenLogged: false,
+  };
+  console.log(
+    `[TTFT] Task ${ttftTaskId} confirmed at ${new Date().toISOString()}, starting TTFT measurement`
+  );
+
+  return true;
 }
 
 /**

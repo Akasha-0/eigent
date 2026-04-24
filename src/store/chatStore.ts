@@ -47,11 +47,13 @@ import {
   processAgentSteps,
   type AgentHandlerStore,
 } from './handlers/AgentHandler';
+import { handleEnd } from './handlers/EndHandler';
 import {
   processFileSteps,
   type FileHandlerStore,
 } from './handlers/FileHandler';
 import {
+  handleConfirmed,
   processSSEMessageErrorSteps,
   processSSEMessageSteps,
   type SSEMessageErrorHandlerStore,
@@ -1044,148 +1046,38 @@ const chatStore = (initial?: Partial<ChatStore>) =>
            * handle cases for @event new_task_state and @function startTask
            */
           let currentTaskId = getCurrentTaskId();
-          const previousChatStore = getCurrentChatStore();
-          if (agentMessages.step === AgentStep.CONFIRMED) {
-            const { question } = agentMessages.data;
-            const shouldCreateNewChat =
-              project_id && (question || messageContent);
-
-            //All except first confirmed event to reuse the existing chatStore
-            if (shouldCreateNewChat && !skipFirstConfirm) {
-              /**
-               * For Tasks where appended to existing project by
-               * reusing same projectId. Need to create new chatStore
-               * as it has been skipped earlier in startTask.
-               */
-              const nextTaskId = previousChatStore.nextTaskId || undefined;
-              const newChatResult = projectStore.appendInitChatStore(
-                project_id || projectStore.activeProjectId!,
-                nextTaskId
-              );
-
-              if (newChatResult) {
-                const { taskId: newTaskId, chatStore: newChatStore } =
-                  newChatResult;
-
-                // Update references for both scenarios
-                updateLockedReferences(newChatStore, newTaskId);
-                newChatStore.getState().setIsPending(newTaskId, false);
-
-                // If nextExecutionId exists, pass it to new task
-                if (previousChatStore.tasks[currentTaskId]?.nextExecutionId) {
-                  newChatStore
-                    .getState()
-                    .setExecutionId(
-                      newTaskId,
-                      previousChatStore.tasks[currentTaskId]?.nextExecutionId
-                    );
-                }
-
-                if (type === 'replay') {
-                  newChatStore
-                    .getState()
-                    .setDelayTime(newTaskId, delayTime as number);
-                  newChatStore.getState().setType(newTaskId, 'replay');
-                }
-
-                const lastMessage =
-                  previousChatStore.tasks[currentTaskId]?.messages.at(-1);
-                if (lastMessage?.role === 'user' && lastMessage?.id) {
-                  previousChatStore.removeMessage(
-                    currentTaskId,
-                    lastMessage.id
-                  );
-                }
-
-                const attachesForNewMessage =
-                  lastMessage?.role === 'user' && lastMessage?.attaches?.length
-                    ? lastMessage.attaches
-                    : [
-                        ...(previousChatStore.tasks[currentTaskId]?.attaches ||
-                          []),
-                        ...(messageAttaches || []),
-                      ];
-
-                //Trick: by the time the question is retrieved from event,
-                //the last message from previous chatStore is at display
-                newChatStore.getState().addMessages(newTaskId, {
-                  id: generateUniqueId(),
-                  role: 'user',
-                  content: question || (messageContent as string),
-                  attaches: attachesForNewMessage,
-                });
-                console.log('[NEW CHATSTORE] Created for ', project_id);
-
-                //Create a new history point
-                if (!type) {
-                  const authStore = getAuthStore();
-
-                  const obj = {
-                    project_id: project_id,
-                    task_id: newTaskId,
-                    user_id: authStore.user_id,
-                    question:
-                      question ||
-                      messageContent ||
-                      (targetChatStore.getState().tasks[newTaskId]?.messages[0]
-                        ?.content ??
-                        ''),
-                    language: systemLanguage,
-                    model_platform: apiModel.model_platform,
-                    model_type: apiModel.model_type,
-                    api_url: modelType === 'cloud' ? 'cloud' : apiModel.api_url,
-                    max_retries: 3,
-                    file_save_path: 'string',
-                    installed_mcp: 'string',
-                    status: 1,
-                    tokens: 0,
-                  };
-                  await proxyFetchPost(`/api/v1/chat/history`, obj).then(
-                    (res) => {
-                      historyId = res.id;
-
-                      /**Save history id for replay reuse purposes.
-                       * TODO(history): Remove historyId handling to support per projectId
-                       * instead in history api
-                       */
-                      if (project_id && historyId)
-                        projectStore.setHistoryId(project_id, historyId);
-                    }
-                  );
-
-                  const currentTaskId = getCurrentTaskId();
-                  // Update trigger execution status to Completed for connection closed by server
-                  updateTriggerExecutionStatus(
-                    getCurrentChatStore(),
-                    project_id,
-                    currentTaskId,
-                    ExecutionStatus.Running,
-                    getCurrentChatStore().tasks[currentTaskId]?.tokens || 0
-                  );
-                }
-              }
-            } else {
-              //NOTE: Triggered only with first "confirmed" in the project
-              //Handle Original cases - with old chatStore
-              previousChatStore.setStatus(
-                currentTaskId,
-                ChatTaskStatus.PENDING
-              );
-              previousChatStore.setHasWaitComfirm(currentTaskId, false);
-            }
-
-            //Enable it for the rest of current SSE session
-            skipFirstConfirm = false;
-
-            // Record confirmed time for TTFT tracking
-            const ttftTaskId = getCurrentTaskId();
-            ttftTracking[ttftTaskId] = {
-              confirmedAt: performance.now(),
-              firstTokenLogged: false,
-            };
-            console.log(
-              `[TTFT] Task ${ttftTaskId} confirmed at ${new Date().toISOString()}, starting TTFT measurement`
-            );
+          // Handle CONFIRMED step via handler
+          const confirmedHandled = await handleConfirmed(
+            {
+              project_id,
+              messageContent,
+              type,
+              delayTime,
+              email,
+              apiModel,
+              systemLanguage,
+              skipFirstConfirm,
+              autoConfirmTimers,
+              ttftTracking,
+              projectStore,
+              updateLockedReferences,
+              targetChatStore,
+              generateUniqueId,
+              addWorkers,
+              browser_port,
+              cdp_browsers,
+              envPath,
+              searchConfig,
+              proxyFetchPost,
+              getCurrentChatStore,
+              setStatus: getCurrentChatStore().getState().setStatus,
+              setHasWaitComfirm:
+                getCurrentChatStore().getState().setHasWaitComfirm,
+            },
+            agentMessages,
+            currentTaskId
+          );
+          if (confirmedHandled) {
             return;
           }
 
@@ -1754,179 +1646,34 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             return;
           }
 
-          if (agentMessages.step === AgentStep.END) {
-            // compute task time
-            console.log(
-              'tasks[taskId].snapshotsTemp',
-              tasks[currentTaskId].snapshotsTemp
-            );
-            Promise.all(
-              tasks[currentTaskId].snapshotsTemp.map((snapshot) =>
-                proxyFetchPost(`/api/v1/chat/snapshots`, { ...snapshot })
-              )
-            );
-
-            const uploadTargetId = (project_id ||
-              projectStore.activeProjectId) as string | undefined;
-            if (!type && import.meta.env.VITE_USE_LOCAL_PROXY !== 'true') {
-              if (!uploadTargetId) {
-                console.warn(
-                  'Skip file upload because no active project ID was found'
-                );
-              } else {
-                try {
-                  const generatedFiles =
-                    ((await window.ipcRenderer.invoke(
-                      'get-file-list',
-                      email,
-                      currentTaskId,
-                      uploadTargetId
-                    )) as GeneratedUploadFile[]) || [];
-                  const filesToUpload = collectTaskUploadFiles(
-                    generatedFiles,
-                    tasks[currentTaskId].messages,
-                    tasks[currentTaskId].attaches,
-                    currentTaskId
-                  );
-
-                  if (filesToUpload.length > 0) {
-                    const uploadResults = await uploadTaskFiles(
-                      filesToUpload,
-                      uploadTargetId
-                    );
-                    const failedUploads = uploadResults.filter(
-                      (result) => !result.success
-                    );
-                    if (failedUploads.length > 0) {
-                      console.error('Failed to upload files:', failedUploads);
-                    }
-
-                    const generatedSuccessCount = uploadResults.filter(
-                      (result) =>
-                        result.success && result.source === 'project_output'
-                    ).length;
-
-                    if (generatedSuccessCount > 0) {
-                      proxyFetchPost(`/api/v1/user/stat`, {
-                        action: 'file_generate_count',
-                        value: generatedSuccessCount,
-                      });
-                    }
-                  }
-                } catch (error) {
-                  console.error(
-                    'Failed to prepare task files for upload:',
-                    error
-                  );
-                }
-              }
-            }
-
-            if (!type && historyId) {
-              const obj = {
-                project_name: tasks[currentTaskId].summaryTask.split('|')[0],
-                summary: tasks[currentTaskId].summaryTask.split('|')[1],
-                status: 2,
-                tokens: getTokens(currentTaskId),
-              };
-              proxyFetchPut(`/api/v1/chat/history/${historyId}`, obj);
-            }
-            uploadLog(currentTaskId, type);
-
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            taskAssigning = taskAssigning.map((agent) => {
-              agent.tasks = agent.tasks.map((task) => {
-                if (
-                  task.status !== TaskStatus.COMPLETED &&
-                  task.status !== TaskStatus.FAILED &&
-                  !type
-                ) {
-                  task.status = TaskStatus.SKIPPED;
-                }
-                return task;
-              });
-              return agent;
-            });
-
-            taskRunning = taskRunning.map((task) => {
-              console.log('task.status', task.status);
-              if (
-                task.status !== TaskStatus.COMPLETED &&
-                task.status !== TaskStatus.FAILED &&
-                !type
-              ) {
-                task.status = TaskStatus.SKIPPED;
-              }
-              return task;
-            });
-            setTaskAssigning(currentTaskId, [...taskAssigning]);
-            setTaskRunning(currentTaskId, [...taskRunning]);
-
-            if (!currentTaskId || !tasks[currentTaskId]) return 'N/A';
-
-            const task = tasks[currentTaskId];
-            let taskTime = task.taskTime;
-            let elapsed = task.elapsed;
-            // if task is running, compute current time
-            if (taskTime !== 0) {
-              const currentTime = Date.now();
-              elapsed += currentTime - taskTime;
-            }
-
-            setTaskTime(currentTaskId, 0);
-            setElapsed(currentTaskId, elapsed);
-            const fileList = tasks[currentTaskId].taskAssigning
-              .map((agent) => {
-                return agent.tasks
-                  .map((task) => {
-                    return task.fileList || [];
-                  })
-                  .flat();
-              })
-              .flat();
-            let endMessage = agentMessages.data as string;
-            let summary = endMessage.match(/<summary>(.*?)<\/summary>/)?.[1];
-            let newMessage: Message | null = null;
-            const agent_summary_end = tasks[currentTaskId].messages.findLast(
-              (message: Message) => message.step === AgentStep.AGENT_SUMMARY_END
-            );
-            console.log('summary', summary);
-            if (summary) {
-              endMessage = summary;
-            } else if (agent_summary_end) {
-              console.log('agent_summary_end', agent_summary_end);
-              endMessage = agent_summary_end.summary || '';
-            }
-
-            console.log('endMessage', endMessage);
-            newMessage = {
-              id: generateUniqueId(),
-              role: 'agent',
-              content: endMessage || '',
-              step: agentMessages.step,
-              isConfirm: false,
-              fileList: fileList,
-            };
-
-            addMessages(currentTaskId, newMessage);
-
-            setIsPending(currentTaskId, false);
-            setStatus(currentTaskId, ChatTaskStatus.FINISHED);
-            // completed tasks move to history
-            setUpdateCount();
-
-            console.log(tasks[currentTaskId], 'end');
-
-            // Update trigger execution status to Completed
-            updateTriggerExecutionStatus(
-              getCurrentChatStore(),
+          // Handle END step via handler
+          const endResult = await handleEnd(
+            {
               project_id,
-              currentTaskId,
-              ExecutionStatus.Completed,
-              tasks[currentTaskId]?.tokens || 0
-            );
-
+              type,
+              historyId,
+              email,
+              tasks,
+              setStatus,
+              setIsPending,
+              setTaskAssigning,
+              setTaskRunning,
+              setTaskTime,
+              setElapsed,
+              addMessages,
+              setUpdateCount,
+              getTokens,
+              getCurrentChatStore,
+              uploadLog,
+              proxyFetchPut,
+              proxyFetchPost,
+              collectTaskUploadFiles,
+              uploadTaskFiles,
+            },
+            agentMessages,
+            currentTaskId
+          );
+          if (endResult === true) {
             return;
           }
           // NOTICE and ASK steps handled via processSSEMessageSteps above
