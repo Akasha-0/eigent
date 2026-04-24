@@ -116,9 +116,9 @@ async function handleResponse(
     }
 
     if (code === 13) {
-      // const { logout } = getAuthStore()
-      // logout()
-      // window.location.href = '#/login'
+      const { logout } = getAuthStore();
+      logout();
+      window.location.href = '#/login'
       throw new Error(text);
     }
 
@@ -141,9 +141,9 @@ async function handleResponse(
     console.error('[fetch error]:', err);
 
     if (err?.response?.status === 401) {
-      // const { logout } = getAuthStore()
-      // logout()
-      // window.location.href = '#/login'
+      const { logout } = getAuthStore();
+      logout();
+      window.location.href = '#/login'
     }
 
     throw err;

@@ -108,6 +108,22 @@ export default defineConfig(({ command, mode }) => {
         renderer: {},
       }),
     ],
+    // Code splitting para otimizar bundle size
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            // Vendor chunks
+            'vendor-react': ['react', 'react-dom', 'react-router-dom'],
+            'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-select', '@radix-ui/react-tabs', '@radix-ui/react-tooltip'],
+            'vendor-utils': ['zustand', 'sonner', 'clsx', 'tailwind-merge', 'class-variance-authority'],
+            // Feature chunks
+            'vendor-charts': ['recharts'],
+            'vendor-editor': ['@monaco-editor/react'],
+          },
+        },
+      },
+    },
     server: {
       open: false,
       ...(process.env.VSCODE_DEBUG &&
