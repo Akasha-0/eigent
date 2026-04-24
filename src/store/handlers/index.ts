@@ -49,8 +49,13 @@ export {
 
 export {
   handleAsk,
+  handleBudgetNotEnough,
+  handleContextTooLong,
+  handleError,
   handleNotice,
+  processSSEMessageErrorSteps,
   processSSEMessageSteps,
+  type SSEMessageErrorHandlerStore,
   type SSEMessageHandlerStore,
 } from './SSEMessageHandler';
 

@@ -13,7 +13,6 @@
 // ========= Copyright 2025-2026 @ Eigent.ai All Rights Reserved. =========
 
 import {
-  fetchDelete,
   fetchPost,
   fetchPut,
   getBaseURL,
@@ -23,9 +22,8 @@ import {
   uploadFile,
   waitForBackendReady,
 } from '@/api/http';
-import { showCreditsToast } from '@/components/Toast/creditsToast';
 import { showStorageToast } from '@/components/Toast/storageToast';
-import { generateUniqueId, uploadLog } from '@/lib';
+import { generateUniqueId } from '@/lib';
 import { proxyUpdateTriggerExecution } from '@/service/triggerApi';
 import { ExecutionStatus } from '@/types';
 import {
@@ -36,7 +34,6 @@ import {
   type ChatTaskStatusType,
 } from '@/types/constants';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import { toast } from 'sonner';
 import { createStore } from 'zustand';
 import { getAuthStore, getWorkerList } from './authStore';
 import {
@@ -55,7 +52,9 @@ import {
   type FileHandlerStore,
 } from './handlers/FileHandler';
 import {
+  processSSEMessageErrorSteps,
   processSSEMessageSteps,
+  type SSEMessageErrorHandlerStore,
   type SSEMessageHandlerStore,
 } from './handlers/SSEMessageHandler';
 import {
@@ -1700,148 +1699,30 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             return;
           }
 
-          if (agentMessages.step === AgentStep.BUDGET_NOT_ENOUGH) {
-            console.log('error', agentMessages.data);
-            showCreditsToast();
-            setStatus(currentTaskId, ChatTaskStatus.PAUSE);
-            uploadLog(currentTaskId, type);
+          // Error handling - use SSEMessageErrorHandler
+          const errorHandlerStore: SSEMessageErrorHandlerStore = {
+            currentTaskId,
+            tasks,
+            setTaskRunning,
+            setTaskAssigning,
+            setStatus,
+            setIsPending,
+            setIsContextExceeded,
+            addMessages,
+            getState: get,
+            type,
+            project_id,
+          };
+
+          if (processSSEMessageErrorSteps(errorHandlerStore, agentMessages)) {
             return;
           }
 
-          if (agentMessages.step === AgentStep.CONTEXT_TOO_LONG) {
-            console.error('Context too long:', agentMessages.data);
-            const currentLength = agentMessages.data.current_length || 0;
-            const maxLength = agentMessages.data.max_length || 100000;
-
-            // Show toast notification
-            toast.dismiss();
-            toast.error(
-              `⚠️ Context Limit Exceeded\n\nThe conversation history is too long (${currentLength.toLocaleString()} / ${maxLength.toLocaleString()} characters).\n\nPlease create a new project to continue your work.`,
-              {
-                duration: Infinity,
-                closeButton: true,
-              }
-            );
-
-            // Set flag to block input and set status to pause
-            setIsContextExceeded(currentTaskId, true);
-            setStatus(currentTaskId, ChatTaskStatus.PAUSE);
-            uploadLog(currentTaskId, type);
-            return;
-          }
-
+          // Handle ERROR step asynchronously (needs await for fetchDelete)
           if (agentMessages.step === AgentStep.ERROR) {
-            try {
-              console.error('Model error:', agentMessages.data);
-
-              // Validate that agentMessages.data exists before processing
-              if (
-                agentMessages.data === undefined ||
-                agentMessages.data === null
-              ) {
-                throw new Error('Invalid error message format: missing data');
-              }
-
-              // Safely extract error message with fallback chain
-              const errorMessage =
-                agentMessages.data?.message ||
-                (typeof agentMessages.data === 'string'
-                  ? agentMessages.data
-                  : null) ||
-                'An error occurred while processing your request';
-
-              // Mark all incomplete tasks as failed
-              let taskRunning = [...tasks[currentTaskId].taskRunning];
-              let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-
-              // Update taskRunning - mark non-completed tasks as failed
-              taskRunning = taskRunning.map((task) => {
-                if (
-                  task.status !== TaskStatus.COMPLETED &&
-                  task.status !== TaskStatus.FAILED
-                ) {
-                  task.status = TaskStatus.FAILED;
-                }
-                return task;
-              });
-
-              // Update taskAssigning - mark non-completed tasks as failed
-              taskAssigning = taskAssigning.map((agent) => {
-                agent.tasks = agent.tasks.map((task) => {
-                  if (
-                    task.status !== TaskStatus.COMPLETED &&
-                    task.status !== TaskStatus.FAILED
-                  ) {
-                    task.status = TaskStatus.FAILED;
-                  }
-                  return task;
-                });
-                return agent;
-              });
-
-              // Apply the updates
-              setTaskRunning(currentTaskId, taskRunning);
-              setTaskAssigning(currentTaskId, taskAssigning);
-
-              // Complete the current task with error status
-              setStatus(currentTaskId, ChatTaskStatus.FINISHED);
-              setIsPending(currentTaskId, false);
-
-              // Add error message to the current task
-              addMessages(currentTaskId, {
-                id: generateUniqueId(),
-                role: 'agent',
-                content: `❌ **Error**: ${errorMessage}`,
-              });
-              uploadLog(currentTaskId, type);
-              // Update trigger execution status to Failed on error
-              updateTriggerExecutionStatus(
-                getCurrentChatStore(),
-                project_id,
-                currentTaskId,
-                ExecutionStatus.Failed,
-                tasks[currentTaskId]?.tokens || 0,
-                errorMessage
-              );
-
-              // Stop the workforce
-              try {
-                await fetchDelete(`/chat/${project_id}`);
-              } catch (error) {
-                console.log('Task may not exist on backend:', error);
-              }
-            } catch (error) {
-              console.error('Failed to handle model error:', error);
-              console.error('Original agentMessages:', agentMessages);
-
-              // Fallback: try to create error task with minimal operations
-              try {
-                const {
-                  create,
-                  setActiveTaskId,
-                  setHasWaitComfirm,
-                  addMessages,
-                } = get();
-                const fallbackTaskId = create();
-                setActiveTaskId(fallbackTaskId);
-                setHasWaitComfirm(fallbackTaskId, true);
-                addMessages(fallbackTaskId, {
-                  id: generateUniqueId(),
-                  role: 'agent',
-                  content: `**Critical Error**: An unexpected error occurred while handling a model error. Please refresh the application or contact support.`,
-                });
-              } catch (fallbackError) {
-                console.error(
-                  'Failed to create fallback error task:',
-                  fallbackError
-                );
-                // Last resort: just log the error without creating UI elements
-                console.error(
-                  'Original error that could not be displayed:',
-                  agentMessages
-                );
-              }
-            }
+            const { handleError } =
+              await import('./handlers/SSEMessageHandler');
+            await handleError(errorHandlerStore, agentMessages);
             return;
           }
 
