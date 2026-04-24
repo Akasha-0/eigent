@@ -1,25 +1,47 @@
 {
   "active": true,
+<<<<<<< HEAD
+  "spec": "019-document-trigger-scheduling-system-for-developers",
+  "state": "building",
+  "subtasks": {
+    "completed": 6,
+    "total": 6,
+=======
   "spec": "013-replace-redis-polling-loop-in-wait-for-delivery-wi",
   "state": "complete",
   "subtasks": {
     "completed": 7,
     "total": 7,
+>>>>>>> origin/main
     "in_progress": 0,
     "failed": 0
   },
   "phase": {
+<<<<<<< HEAD
+    "current": "Developer Documentation",
+    "id": null,
+    "total": 6
+=======
     "current": "Remove old polling method",
     "id": null,
     "total": 1
+>>>>>>> origin/main
   },
   "workers": {
     "active": 0,
     "max": 1
   },
   "session": {
+<<<<<<< HEAD
+    "number": 7,
+    "started_at": "2026-04-23T07:22:35.985700"
+  },
+  "last_update": "2026-04-23T13:00:00.000000"
+}
+=======
     "number": 8,
     "started_at": "2026-04-23T08:28:02.014423"
   },
   "last_update": "2026-04-23T10:35:00.000000"
 }
+>>>>>>> origin/main

@@ -77,6 +77,7 @@
               "/core/tools",
               "/core/workers",
               "/core/agent-skills",
+              "/core/triggers",
               "/core/build-custom-toolkit"
             ]
           },
