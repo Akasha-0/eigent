@@ -11,6 +11,7 @@
       "Edit(./**)",
       "Glob(./**)",
       "Grep(./**)",
+<<<<<<< HEAD
       "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers/**)",
       "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers/**)",
       "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers/**)",
@@ -19,6 +20,16 @@
       "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
       "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
       "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\019-document-trigger-scheduling-system-for-developers\\.auto-claude\\specs\\019-document-trigger-scheduling-system-for-developers/**)",
+=======
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Glob(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Grep(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+      "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude\\worktrees\\tasks\\013-replace-redis-polling-loop-in-wait-for-delivery-wi\\.auto-claude\\specs\\013-replace-redis-polling-loop-in-wait-for-delivery-wi/**)",
+>>>>>>> origin/main
       "Read(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
       "Write(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",
       "Edit(C:\\Users\\gabri\\Desktop\\eigent\\.auto-claude/**)",

@@ -1,0 +1,120 @@
+name: Bundle Analysis
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+      
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+      
+      - name: Build
+        run: pnpm build
+      
+      - name: Generate bundle stats
+        run: pnpm exec rollup -f es -p @rollup/plugin-terser dist/**/*.js 2>/dev/null || true
+      
+      - name: Check bundle size
+        run: |
+          echo "📦 Bundle Size Report"
+          echo "===================="
+          
+          if [ -d "dist" ]; then
+            # Main JS bundle
+            MAIN_JS=$(find dist -name "*.js" -not -path "*/node_modules/*" 2>/dev/null | head -5)
+            for file in $MAIN_JS; do
+              size=$(wc -c "$file" 2>/dev/null | awk '{print $1}')
+              size_kb=$((size / 1024))
+              echo "$file: ${size_kb}KB"
+              
+              # Warn if too large
+              if [ $size_kb -gt 2000 ]; then
+                echo "⚠️ WARNING: $file is larger than 2MB"
+              fi
+            done
+          fi
+      
+      - name: Compare with main branch
+        if: github.event_name == 'pull_request'
+        run: |
+          echo "📊 Comparing with main branch..."
+          
+          # Get main branch stats
+          git stash
+          git checkout main
+          pnpm build 2>/dev/null || true
+          MAIN_SIZE=$(find dist -name "*.js" -not -path "*/node_modules/*" 2>/dev/null | head -1 | xargs wc -c 2>/dev/null | awk '{print $1}')
+          MAIN_SIZE_KB=$((MAIN_SIZE / 1024))
+          
+          git checkout -
+          git stash pop
+          
+          CURRENT_SIZE=$(find dist -name "*.js" -not -path "*/node_modules/*" 2>/dev/null | head -1 | xargs wc -c 2>/dev/null | awk '{print $1}')
+          CURRENT_SIZE_KB=$((CURRENT_SIZE / 1024))
+          
+          echo "Main branch: ${MAIN_SIZE_KB}KB"
+          echo "Current: ${CURRENT_SIZE_KB}KB"
+          
+          if [ $CURRENT_SIZE_KB -gt $((MAIN_SIZE_KB + 100)) ]; then
+            echo "⚠️ Bundle size increased by $((CURRENT_SIZE_KB - MAIN_SIZE_KB))KB"
+            echo "##[warning]Bundle size increased! Please review new dependencies."
+          else
+            echo "✅ Bundle size is stable or reduced"
+          fi
+      
+      - name: Set bundle size limits
+        run: |
+          # Define limits (in KB)
+          MAX_JS_BUNDLE=2000
+          MAX_CSS_BUNDLE=200
+          MAX_TOTAL_ASSETS=5000
+          
+          echo "📏 Bundle Size Limits"
+          echo "Max JS: ${MAX_JS_BUNDLE}KB"
+          echo "Max CSS: ${MAX_CSS_BUNDLE}KB"
+          echo "Max Total: ${MAX_TOTAL_ASSETS}KB"
+      
+      - name: Upload bundle stats
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-stats-${{ github.sha}}
+          path: dist/stats.html
+          retention-days: 30
+      
+      - name: Upload PR comment
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: bundle-report
+          path: dist/
+          retention-days: 7
+      
+      - name: Deploy preview
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/stats.html
+      
+      - name: Deploy to GitHub Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: actions/deploy-pages@v4
