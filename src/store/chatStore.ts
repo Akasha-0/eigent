@@ -29,7 +29,6 @@ import { generateUniqueId, uploadLog } from '@/lib';
 import { proxyUpdateTriggerExecution } from '@/service/triggerApi';
 import { ExecutionStatus } from '@/types';
 import {
-  AgentMessageStatus,
   AgentStatusValue,
   AgentStep,
   ChatTaskStatus,
@@ -37,7 +36,6 @@ import {
   type ChatTaskStatusType,
 } from '@/types/constants';
 import { fetchEventSource } from '@microsoft/fetch-event-source';
-import { FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import { createStore } from 'zustand';
 import { getAuthStore, getWorkerList } from './authStore';
@@ -52,17 +50,17 @@ import {
   resolveProcessTaskIdForToolkitEvent,
 } from './handlers';
 import {
-  processSSEMessageSteps,
-  type SSEMessageHandlerStore,
-} from './handlers/SSEMessageHandler';
+  processAgentSteps,
+  type AgentHandlerStore,
+} from './handlers/AgentHandler';
 import {
   processFileSteps,
   type FileHandlerStore,
 } from './handlers/FileHandler';
 import {
-  processAgentSteps,
-  type AgentHandlerStore,
-} from './handlers/AgentHandler';
+  processSSEMessageSteps,
+  type SSEMessageHandlerStore,
+} from './handlers/SSEMessageHandler';
 import {
   processTaskSteps,
   type TaskHandlerStore,
@@ -1284,77 +1282,43 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             setActiveAsk,
             setIsPending,
           };
-          
+
           // Handle NOTICE and ASK steps
-          const noticeOrAskResult = processSSEMessageSteps(sseStore, agentMessages);
+          const noticeOrAskResult = processSSEMessageSteps(
+            sseStore,
+            agentMessages
+          );
           if (noticeOrAskResult === 'sync') {
             return;
           }
-          
+
           if (agentMessages.step === AgentStep.NOTICE) {
             return;
           }
-          
+
           if (agentMessages.step === AgentStep.ASK) {
             return;
           }
-          // Create agent
-          if (agentMessages.step === AgentStep.CREATE_AGENT) {
-            const { agent_name, agent_id } = agentMessages.data;
-            if (!agent_name || !agent_id) return;
+          // Agent operations (Create, Activate, Deactivate) - use AgentHandler
+          // Note: WAIT_CONFIRM, TASK_STATE, ASSIGN_TASK need special handling below
+          const agentStore: AgentHandlerStore = {
+            currentTaskId,
+            tasks,
+            setTaskAssigning,
+            setTaskRunning,
+            addMessages,
+            addTokens,
+            setSummaryTask,
+            setStatus,
+            setIsTaskEdit,
+          };
+          const agentContext = { historyId, type, project_id };
 
-            // Add agent to taskAssigning
-            if (
-              ![
-                'mcp_agent',
-                'new_worker_agent',
-                'task_agent',
-                'task_summary_agent',
-                'coordinator_agent',
-                'question_confirm_agent',
-              ].includes(agent_name)
-            ) {
-              // if (agentNameMap[agent_name as keyof typeof agentNameMap]) {
-              const hasAgent = tasks[currentTaskId].taskAssigning.find(
-                (agent) => agent.agent_id === agent_id
-              );
-
-              if (!hasAgent) {
-                let activeWebviewIds: any = [];
-                if (agent_name == 'browser_agent') {
-                  snapshots.forEach((item: any) => {
-                    const imgurl = !item.image_path.includes('/public')
-                      ? item.image_path
-                      : (import.meta.env.DEV
-                          ? import.meta.env.VITE_PROXY_URL
-                          : import.meta.env.VITE_BASE_URL) + item.image_path;
-                    activeWebviewIds.push({
-                      id: item.id,
-                      img: imgurl,
-                      processTaskId: item.camel_task_id,
-                      url: item.browser_url,
-                    });
-                  });
-                }
-                setTaskAssigning(currentTaskId, [
-                  ...tasks[currentTaskId].taskAssigning,
-                  {
-                    agent_id,
-                    name:
-                      agentNameMap[agent_name as keyof typeof agentNameMap] ||
-                      agent_name,
-                    type: agent_name as AgentNameType,
-                    tasks: [],
-                    log: [],
-                    img: [],
-                    tools: agentMessages.data.tools,
-                    activeWebviewIds: activeWebviewIds,
-                  },
-                ]);
-              }
-            }
+          if (processAgentSteps(agentStore, agentMessages, agentContext)) {
             return;
           }
+
+          // Agent lifecycle handlers that need special processing
           if (agentMessages.step === AgentStep.WAIT_CONFIRM) {
             const { content, question } = agentMessages.data;
             setHasWaitComfirm(currentTaskId, true);
@@ -1498,118 +1462,33 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             );
             return;
           }
+          // Task operations (Task State, Assign Task) - use TaskHandler
+          const taskStore: TaskHandlerStore = {
+            currentTaskId,
+            tasks,
+            setTaskInfo,
+            setTaskRunning,
+            setTaskAssigning,
+            setSummaryTask,
+            setStatus,
+            setIsTaskEdit,
+            addMessages,
+            addTokens,
+            getTokens,
+            clearStreamingDecomposeText,
+            handleConfirmTask,
+          };
 
-          // Activate agent
+          const taskContext = { type, historyId, project_id };
+
           if (
-            agentMessages.step === AgentStep.ACTIVATE_AGENT ||
-            agentMessages.step === AgentStep.DEACTIVATE_AGENT
+            processTaskSteps(
+              taskStore,
+              agentMessages,
+              autoConfirmTimers,
+              taskContext
+            )
           ) {
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-            if (agentMessages.data.tokens) {
-              addTokens(currentTaskId, agentMessages.data.tokens);
-            }
-            const { state, agent_id, process_task_id } = agentMessages.data;
-            if (!state && !agent_id && !process_task_id) return;
-            const agentIndex = taskAssigning.findIndex(
-              (agent) => agent.agent_id === agent_id
-            );
-
-            if (agentIndex === -1) return;
-
-            // // add log
-            // const message = filterMessage(agentMessages.data.message || '', agentMessages.data.method_name)
-            // if (message) {
-            // 	taskAssigning[agentIndex].log.push(agentMessages);
-            // }
-
-            const message = filterMessage(agentMessages);
-            if (agentMessages.step === AgentStep.ACTIVATE_AGENT) {
-              taskAssigning[agentIndex].status = AgentStatusValue.RUNNING;
-              if (message) {
-                taskAssigning[agentIndex].log.push({
-                  ...agentMessages,
-                  status: AgentMessageStatus.RUNNING,
-                });
-              }
-              const taskIndex = taskRunning.findIndex(
-                (task) => task.id === process_task_id
-              );
-              if (taskIndex !== -1 && taskRunning![taskIndex].status) {
-                taskRunning![taskIndex].agent!.status =
-                  AgentStatusValue.RUNNING;
-                taskRunning![taskIndex]!.status = TaskStatus.RUNNING;
-
-                const task = taskAssigning[agentIndex].tasks.find(
-                  (task: TaskInfo) => task.id === process_task_id
-                );
-                if (task) {
-                  task.status = TaskStatus.RUNNING;
-                }
-              }
-              setTaskRunning(currentTaskId, [...taskRunning]);
-              setTaskAssigning(currentTaskId, [...taskAssigning]);
-            }
-            if (agentMessages.step === AgentStep.DEACTIVATE_AGENT) {
-              if (message) {
-                const index = taskAssigning[agentIndex].log.findLastIndex(
-                  (log) =>
-                    log.data.method_name === agentMessages.data.method_name &&
-                    log.data.toolkit_name === agentMessages.data.toolkit_name
-                );
-                if (index != -1) {
-                  taskAssigning[agentIndex].log[index].status =
-                    AgentMessageStatus.COMPLETED;
-                  setTaskAssigning(currentTaskId, [...taskAssigning]);
-                }
-              }
-              const taskIndex = taskRunning.findIndex(
-                (task) => task.id === process_task_id
-              );
-              if (taskIndex !== -1 && taskRunning[taskIndex].agent) {
-                taskRunning[taskIndex].agent!.status = 'completed';
-              }
-
-              if (!type && historyId) {
-                const obj = {
-                  project_name: tasks[currentTaskId].summaryTask.split('|')[0],
-                  summary: tasks[currentTaskId].summaryTask.split('|')[1],
-                  status: 1,
-                  tokens: getTokens(currentTaskId),
-                };
-                proxyFetchPut(`/api/v1/chat/history/${historyId}`, obj);
-              }
-
-              // Check if this is a quick reply completion (simple question answered directly)
-              // This happens when question_confirm_agent deactivates with a non-yes/no answer
-              // and tokens are used (indicating actual response generation, not just classification)
-              const isQuestionConfirmAgent =
-                agentMessages.data.agent_name === 'question_confirm_agent';
-              const hasTokens =
-                agentMessages.data.tokens && agentMessages.data.tokens > 0;
-              const isNotClassificationAnswer =
-                agentMessages.data.message &&
-                agentMessages.data.message.trim().toLowerCase() !== 'yes' &&
-                agentMessages.data.message.trim().toLowerCase() !== 'no';
-
-              if (
-                isQuestionConfirmAgent &&
-                hasTokens &&
-                isNotClassificationAnswer
-              ) {
-                // This is a quick reply - update trigger execution status to Completed
-                updateTriggerExecutionStatus(
-                  getCurrentChatStore(),
-                  project_id,
-                  currentTaskId,
-                  ExecutionStatus.Completed,
-                  tasks[currentTaskId]?.tokens || 0
-                );
-              }
-
-              setTaskRunning(currentTaskId, [...taskRunning]);
-              setTaskAssigning(currentTaskId, [...taskAssigning]);
-            }
             return;
           }
           // Assign task
@@ -1991,36 +1870,17 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             setTaskRunning(currentTaskId, taskRunning);
             return;
           }
-          // Terminal
-          if (agentMessages.step === AgentStep.TERMINAL) {
-            addTerminal(
-              currentTaskId,
-              agentMessages.data.process_task_id as string,
-              agentMessages.data.output as string
-            );
-            return;
-          }
-          // Write File
-          if (agentMessages.step === AgentStep.WRITE_FILE) {
-            console.log('write_to_file', agentMessages.data);
-            setNuwFileNum(currentTaskId, tasks[currentTaskId].nuwFileNum + 1);
-            // Mark inbox tab as having unviewed content
-            usePageTabStore.getState().markTabAsUnviewed('inbox');
-            const { file_path } = agentMessages.data;
-            const fileName =
-              file_path?.replace(/\\/g, '/').split('/').pop() || '';
-            const fileType = fileName.split('.').pop() || '';
-            const fileInfo: FileInfo = {
-              name: fileName,
-              type: fileType,
-              path: file_path || '',
-              icon: FileText,
-            };
-            addFileList(
-              currentTaskId,
-              agentMessages.data.process_task_id as string,
-              fileInfo
-            );
+          // File operations (Terminal, Write File) - use FileHandler
+          const fileStore: FileHandlerStore = {
+            currentTaskId,
+            tasks,
+            addTerminal,
+            setNuwFileNum,
+            addFileList,
+            usePageTabStore,
+          };
+
+          if (processFileSteps(fileStore, agentMessages)) {
             return;
           }
 
@@ -2419,7 +2279,10 @@ const chatStore = (initial?: Partial<ChatStore>) =>
           }
           // NOTICE and ASK steps handled via processSSEMessageSteps above
           // Additional NOTICE handling (with process_task_id)
-          if (agentMessages.step === AgentStep.NOTICE && agentMessages.data.process_task_id !== '') {
+          if (
+            agentMessages.step === AgentStep.NOTICE &&
+            agentMessages.data.process_task_id !== ''
+          ) {
             if (agentMessages.data.process_task_id !== '') {
               let taskAssigning = [...tasks[currentTaskId].taskAssigning];
 
