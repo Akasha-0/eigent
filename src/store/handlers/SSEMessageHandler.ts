@@ -19,8 +19,7 @@
  */
 
 import { generateUniqueId } from '@/lib';
-import type { AgentStep } from '@/types/constants';
-import { AgentStatusValue } from '@/types/constants';
+import { AgentStep, AgentStatusValue } from '@/types/constants';
 import type {
   Agent,
   AgentMessage,

@@ -52,6 +52,22 @@ import {
   resolveProcessTaskIdForToolkitEvent,
 } from './handlers';
 import {
+  processSSEMessageSteps,
+  type SSEMessageHandlerStore,
+} from './handlers/SSEMessageHandler';
+import {
+  processFileSteps,
+  type FileHandlerStore,
+} from './handlers/FileHandler';
+import {
+  processAgentSteps,
+  type AgentHandlerStore,
+} from './handlers/AgentHandler';
+import {
+  processTaskSteps,
+  type TaskHandlerStore,
+} from './handlers/TaskHandler';
+import {
   collectTaskUploadFiles,
   uploadTaskFiles,
 } from './handlers/UploadHandler';
@@ -1257,145 +1273,29 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             return;
           }
 
-          if (agentMessages.step === AgentStep.TO_SUB_TASKS) {
-            // Clear streaming decompose text when task splitting is done
-            clearStreamingDecomposeText(currentTaskId);
-            // Clean up TTFT tracking
-            delete ttftTracking[currentTaskId];
-
-            // Check if task is already confirmed - don't overwrite user edits
-            const existingToSubTasksMessage = tasks[
-              currentTaskId
-            ].messages.findLast(
-              (m: Message) => m.step === AgentStep.TO_SUB_TASKS
-            );
-            if (existingToSubTasksMessage?.isConfirm) {
-              return;
-            }
-
-            // Check if this is a multi-turn scenario after task completion
-            const isMultiTurnAfterCompletion =
-              tasks[currentTaskId].status === ChatTaskStatus.FINISHED;
-
-            // Reset status for multi-turn complex tasks to allow splitting panel to show
-            if (isMultiTurnAfterCompletion) {
-              setStatus(currentTaskId, ChatTaskStatus.PENDING);
-            }
-
-            // Each splitting round starts in a clean editing state
-            setIsTaskEdit(currentTaskId, false);
-
-            const messages = [...tasks[currentTaskId].messages];
-            const toSubTaskIndex = messages.findLastIndex(
-              (message: Message) => message.step === AgentStep.TO_SUB_TASKS
-            );
-            // For multi-turn scenarios, always create a new to_sub_tasks message
-            // even if one already exists from a previous task
-            if (toSubTaskIndex === -1 || isMultiTurnAfterCompletion) {
-              // Clear any pending auto-confirm timer from previous rounds
-              try {
-                if (autoConfirmTimers[currentTaskId]) {
-                  clearTimeout(autoConfirmTimers[currentTaskId]);
-                  delete autoConfirmTimers[currentTaskId];
-                }
-              } catch (error) {
-                console.warn('Error clearing auto-confirm timer:', error);
-              }
-
-              // 30 seconds auto confirm
-              try {
-                autoConfirmTimers[currentTaskId] = setTimeout(() => {
-                  try {
-                    const currentStore = getCurrentChatStore();
-                    const currentId = getCurrentTaskId();
-                    const { tasks, handleConfirmTask, setIsTaskEdit } =
-                      currentStore;
-                    const message = tasks[currentId].messages.findLast(
-                      (item) => item.step === AgentStep.TO_SUB_TASKS
-                    );
-                    const isConfirm = message?.isConfirm || false;
-                    const isTakeControl = tasks[currentId].isTakeControl;
-
-                    if (
-                      project_id &&
-                      !isConfirm &&
-                      !isTakeControl &&
-                      !tasks[currentId].isTaskEdit
-                    ) {
-                      handleConfirmTask(project_id, currentId, type);
-                    }
-                    setIsTaskEdit(currentId, false);
-                    delete autoConfirmTimers[currentId];
-                  } catch (error) {
-                    console.error(
-                      'Error in auto-confirm timeout handler:',
-                      error
-                    );
-                    // Clean up the timer reference even if there's an error
-                    delete autoConfirmTimers[currentTaskId];
-                  }
-                }, 30000);
-              } catch (error) {
-                console.error('Error setting auto-confirm timer:', error);
-              }
-
-              const newNoticeMessage: Message = {
-                id: generateUniqueId(),
-                role: 'agent',
-                content: '',
-                step: AgentStep.NOTICE_CARD,
-              };
-              addMessages(currentTaskId, newNoticeMessage);
-              const shouldAutoConfirm = !!type && !isMultiTurnAfterCompletion;
-
-              const newMessage: Message = {
-                id: generateUniqueId(),
-                role: 'agent',
-                content: '',
-                step: agentMessages.step,
-                taskType: type ? 2 : 1,
-                showType: 'list',
-                // Don't auto-confirm for multi-turn complex tasks - show workforce splitting panel
-                isConfirm: shouldAutoConfirm,
-                task_id: currentTaskId,
-              };
-              addMessages(currentTaskId, newMessage);
-              const newTaskInfo = {
-                id: '',
-                content: '',
-              };
-              type !== 'replay' &&
-                agentMessages.data.sub_tasks?.push(newTaskInfo);
-            }
-            agentMessages.data.sub_tasks = agentMessages.data.sub_tasks?.map(
-              (item) => {
-                item.status = TaskStatus.EMPTY;
-                return item;
-              }
-            );
-
-            if (!type && historyId) {
-              const obj = {
-                project_name:
-                  agentMessages.data!.summary_task?.split('|')[0] || '',
-                summary: agentMessages.data!.summary_task?.split('|')[1] || '',
-                status: 1,
-                tokens: getTokens(currentTaskId),
-              };
-              proxyFetchPut(`/api/v1/chat/history/${historyId}`, obj);
-            }
-            setSummaryTask(
-              currentTaskId,
-              agentMessages.data.summary_task as string
-            );
-            setTaskInfo(
-              currentTaskId,
-              agentMessages.data.sub_tasks as TaskInfo[]
-            );
-            setTaskRunning(
-              currentTaskId,
-              agentMessages.data.sub_tasks as TaskInfo[]
-            );
+          // Process SSE message steps using handlers
+          const sseStore: SSEMessageHandlerStore = {
+            currentTaskId,
+            tasks,
+            setTaskAssigning,
+            setCotList,
+            addMessages,
+            setActiveAskList,
+            setActiveAsk,
+            setIsPending,
+          };
+          
+          // Handle NOTICE and ASK steps
+          const noticeOrAskResult = processSSEMessageSteps(sseStore, agentMessages);
+          if (noticeOrAskResult === 'sync') {
+            return;
+          }
+          
+          if (agentMessages.step === AgentStep.NOTICE) {
+            return;
+          }
+          
+          if (agentMessages.step === AgentStep.ASK) {
             return;
           }
           // Create agent
@@ -2517,7 +2417,9 @@ const chatStore = (initial?: Partial<ChatStore>) =>
 
             return;
           }
-          if (agentMessages.step === AgentStep.NOTICE) {
+          // NOTICE and ASK steps handled via processSSEMessageSteps above
+          // Additional NOTICE handling (with process_task_id)
+          if (agentMessages.step === AgentStep.NOTICE && agentMessages.data.process_task_id !== '') {
             if (agentMessages.data.process_task_id !== '') {
               let taskAssigning = [...tasks[currentTaskId].taskAssigning];
 
@@ -2544,51 +2446,10 @@ const chatStore = (initial?: Partial<ChatStore>) =>
                 task.toolkits.push({ ...toolkit });
               }
               setTaskAssigning(currentTaskId, [...taskAssigning]);
-            } else {
-              const messages = [...tasks[currentTaskId].messages];
-              const noticeCardIndex = messages.findLastIndex(
-                (message) => message.step === AgentStep.NOTICE_CARD
-              );
-              if (noticeCardIndex === -1) {
-                const newMessage: Message = {
-                  id: generateUniqueId(),
-                  role: 'agent',
-                  content: '',
-                  step: AgentStep.NOTICE_CARD,
-                };
-                addMessages(currentTaskId, newMessage);
-              }
-              setCotList(currentTaskId, [
-                ...tasks[currentTaskId].cotList,
-                agentMessages.data.notice as string,
-              ]);
             }
             return;
           }
-          if (agentMessages.step === AgentStep.SYNC) return;
-          if (agentMessages.step === AgentStep.ASK) {
-            if (tasks[currentTaskId].activeAsk != '') {
-              const newMessage: Message = {
-                id: generateUniqueId(),
-                role: 'agent',
-                agent_name: agentMessages.data.agent || '',
-                content:
-                  agentMessages.data?.content ||
-                  agentMessages.data?.notice ||
-                  agentMessages.data?.answer ||
-                  agentMessages.data?.question ||
-                  (agentMessages.data as string) ||
-                  '',
-                step: agentMessages.step,
-                isConfirm: false,
-              };
-              let activeAskList = tasks[currentTaskId].askList;
-              setActiveAskList(currentTaskId, [...activeAskList, newMessage]);
-              return;
-            }
-            setActiveAsk(currentTaskId, agentMessages.data.agent || '');
-            setIsPending(currentTaskId, false);
-          }
+          // Fallback: add generic message for unhandled steps
           const newMessage: Message = {
             id: generateUniqueId(),
             role: 'agent',

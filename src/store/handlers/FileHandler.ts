@@ -18,7 +18,7 @@
  * Extraído do chatStore.ts para melhor organização.
  */
 
-import type { AgentStep } from '@/types/constants';
+import { AgentStep } from '@/types/constants';
 import type { AgentMessage, FileInfo } from '@/types/handlers';
 import { FileText } from 'lucide-react';
 
