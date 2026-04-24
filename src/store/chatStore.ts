@@ -41,13 +41,10 @@ import { createStore } from 'zustand';
 import { getAuthStore, getWorkerList } from './authStore';
 import {
   ConnectionManager,
-  filterMessage,
   addMessages as handlerAddMessages,
   deleteMessage as handlerDeleteMessage,
   setMessages as handlerSetMessages,
   updateMessage as handlerUpdateMessage,
-  normalizeToolkitMessage,
-  resolveProcessTaskIdForToolkitEvent,
 } from './handlers';
 import {
   processAgentSteps,
@@ -65,6 +62,11 @@ import {
   processTaskSteps,
   type TaskHandlerStore,
 } from './handlers/TaskHandler';
+import {
+  handleActivateToolkit,
+  handleDeactivateToolkit,
+  ToolkitHandlerDeps,
+} from './handlers/ToolkitHandler';
 import {
   collectTaskUploadFiles,
   uploadTaskFiles,
@@ -1660,214 +1662,28 @@ const chatStore = (initial?: Partial<ChatStore>) =>
           }
           // Activate Toolkit
           if (agentMessages.step === AgentStep.ACTIVATE_TOOLKIT) {
-            // add log
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            const resolvedProcessTaskId = resolveProcessTaskIdForToolkitEvent(
+            const toolkitDeps: ToolkitHandlerDeps = {
               tasks,
               currentTaskId,
-              agentMessages.data.agent_name,
-              agentMessages.data.process_task_id
-            );
-            let assigneeAgentIndex = taskAssigning!.findIndex((agent: Agent) =>
-              agent.tasks.find(
-                (task: TaskInfo) => task.id === resolvedProcessTaskId
-              )
-            );
-
-            // Fallback: if task ID not found, try finding by agent type
-            if (assigneeAgentIndex === -1 && agentMessages.data.agent_name) {
-              assigneeAgentIndex = taskAssigning!.findIndex(
-                (agent: Agent) => agent.type === agentMessages.data.agent_name
-              );
-            }
-
-            if (assigneeAgentIndex !== -1) {
-              const message = filterMessage(agentMessages);
-              if (message) {
-                taskAssigning[assigneeAgentIndex].log.push(agentMessages);
-                setTaskAssigning(currentTaskId, [...taskAssigning]);
-              }
-            }
-
-            if (
-              agentMessages.data.toolkit_name === 'Browser Toolkit' &&
-              agentMessages.data.method_name === 'browser visit page'
-            ) {
-              addWebViewUrl(
-                currentTaskId,
-                normalizeToolkitMessage(agentMessages.data.message)
-                  .replace(/url=/g, '')
-                  .replace(/'/g, '') as string,
-                resolvedProcessTaskId
-              );
-            }
-            if (
-              agentMessages.data.toolkit_name === 'Browser Toolkit' &&
-              agentMessages.data.method_name === 'visit page'
-            ) {
-              console.log('match success');
-              addWebViewUrl(
-                currentTaskId,
-                normalizeToolkitMessage(agentMessages.data.message) as string,
-                resolvedProcessTaskId
-              );
-            }
-            if (
-              agentMessages.data.toolkit_name === 'ElectronToolkit' &&
-              agentMessages.data.method_name === 'browse_url'
-            ) {
-              addWebViewUrl(
-                currentTaskId,
-                normalizeToolkitMessage(agentMessages.data.message) as string,
-                resolvedProcessTaskId
-              );
-            }
-            if (
-              agentMessages.data.method_name === 'browser_navigate' &&
-              agentMessages.data.message?.startsWith('{"url"')
-            ) {
-              try {
-                const urlData = JSON.parse(
-                  normalizeToolkitMessage(agentMessages.data.message)
-                );
-                if (urlData?.url) {
-                  addWebViewUrl(
-                    currentTaskId,
-                    urlData.url as string,
-                    resolvedProcessTaskId
-                  );
-                }
-              } catch (error) {
-                console.error('Failed to parse browser_navigate URL:', error);
-                console.error('Raw message:', agentMessages.data.message);
-              }
-            }
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-
-            const taskIndex = taskRunning.findIndex(
-              (task) => task.id === resolvedProcessTaskId
-            );
-
-            if (taskIndex !== -1) {
-              const { toolkit_name, method_name } = agentMessages.data;
-              if (toolkit_name && method_name) {
-                const message = filterMessage(agentMessages);
-                if (message) {
-                  const toolkit = {
-                    toolkitId: generateUniqueId(),
-                    toolkitName: toolkit_name,
-                    toolkitMethods: method_name,
-                    message: normalizeToolkitMessage(message.data.message),
-                    toolkitStatus: AgentStatusValue.RUNNING,
-                  };
-
-                  // Update taskAssigning if we found the agent
-                  if (assigneeAgentIndex !== -1) {
-                    const task = taskAssigning[assigneeAgentIndex].tasks.find(
-                      (task: TaskInfo) => task.id === resolvedProcessTaskId
-                    );
-                    if (task) {
-                      task.toolkits ??= [];
-                      task.toolkits.push({ ...toolkit });
-                      task.status = TaskStatus.RUNNING;
-                      setTaskAssigning(currentTaskId, [...taskAssigning]);
-                    }
-                  }
-
-                  // Always update taskRunning (even if assigneeAgentIndex is -1)
-                  taskRunning![taskIndex].status = TaskStatus.RUNNING;
-                  taskRunning![taskIndex].toolkits ??= [];
-                  taskRunning![taskIndex].toolkits.push({ ...toolkit });
-                }
-              }
-            }
-            setTaskRunning(currentTaskId, taskRunning);
+              agentMessages,
+              setTaskAssigning,
+              setTaskRunning,
+              addWebViewUrl,
+            };
+            handleActivateToolkit(toolkitDeps);
             return;
           }
           // Deactivate Toolkit
           if (agentMessages.step === AgentStep.DEACTIVATE_TOOLKIT) {
-            // add log
-            let taskAssigning = [...tasks[currentTaskId].taskAssigning];
-            const resolvedProcessTaskId = resolveProcessTaskIdForToolkitEvent(
+            const toolkitDeps: ToolkitHandlerDeps = {
               tasks,
               currentTaskId,
-              agentMessages.data.agent_name,
-              agentMessages.data.process_task_id
-            );
-
-            const assigneeAgentIndex = taskAssigning!.findIndex(
-              (agent: Agent) =>
-                agent.tasks.find(
-                  (task: TaskInfo) => task.id === resolvedProcessTaskId
-                )
-            );
-            if (assigneeAgentIndex !== -1) {
-              const message = filterMessage(agentMessages);
-              if (message) {
-                const task = taskAssigning[assigneeAgentIndex].tasks.find(
-                  (task: TaskInfo) => task.id === resolvedProcessTaskId
-                );
-                if (task) {
-                  let index = task.toolkits?.findIndex((toolkit: any) => {
-                    return (
-                      toolkit.toolkitName === agentMessages.data.toolkit_name &&
-                      toolkit.toolkitMethods ===
-                        agentMessages.data.method_name &&
-                      toolkit.toolkitStatus === AgentStatusValue.RUNNING
-                    );
-                  });
-
-                  if (task.toolkits && index !== -1 && index !== undefined) {
-                    task.toolkits[index].message =
-                      `${normalizeToolkitMessage(task.toolkits[index].message)}\n${normalizeToolkitMessage(message.data.message)}`.trim();
-                    task.toolkits[index].toolkitStatus =
-                      AgentStatusValue.COMPLETED;
-                  }
-                  // task.toolkits?.unshift({
-                  // 	toolkitName: agentMessages.data.toolkit_name as string,
-                  // 	toolkitMethods: agentMessages.data.method_name as string,
-                  // 	message: message.data.message as string,
-                  // 	toolkitStatus: "completed",
-                  // });
-                  // task.toolkits?.unshift({
-                  // 	toolkitName: agentMessages.data.toolkit_name as string,
-                  // 	toolkitMethods: agentMessages.data.method_name as string,
-                  // 	message: message.data.message as string,
-                  // 	toolkitStatus: "completed",
-                  // });
-                }
-                taskAssigning[assigneeAgentIndex].log.push(agentMessages);
-
-                setTaskAssigning(currentTaskId, [...taskAssigning]);
-              }
-            }
-
-            let taskRunning = [...tasks[currentTaskId].taskRunning];
-            const { toolkit_name, method_name, message } = agentMessages.data;
-            const taskIndex = taskRunning.findIndex(
-              (task) =>
-                task.agent?.type === agentMessages.data.agent_name &&
-                task.toolkits?.at(-1)?.toolkitName === toolkit_name
-            );
-
-            if (taskIndex !== -1) {
-              if (toolkit_name && method_name && message) {
-                const targetMessage = filterMessage(agentMessages);
-
-                if (targetMessage) {
-                  taskRunning![taskIndex].toolkits?.unshift({
-                    toolkitName: toolkit_name,
-                    toolkitMethods: method_name,
-                    message: normalizeToolkitMessage(
-                      targetMessage.data.message
-                    ),
-                    toolkitStatus: AgentStatusValue.COMPLETED,
-                  });
-                }
-              }
-            }
-            setTaskAssigning(currentTaskId, [...taskAssigning]);
-            setTaskRunning(currentTaskId, taskRunning);
+              agentMessages,
+              setTaskAssigning,
+              setTaskRunning,
+              addWebViewUrl,
+            };
+            handleDeactivateToolkit(toolkitDeps);
             return;
           }
           // File operations (Terminal, Write File) - use FileHandler

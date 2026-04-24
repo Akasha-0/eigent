@@ -21,13 +21,9 @@
 
 import { generateUniqueId } from '@/lib';
 import { AgentStatusValue, TaskStatus } from '@/types/constants';
-import type {
-  Agent,
-  AgentMessage,
-  Task,
-  TaskInfo,
-  ToolKit,
-} from '@/types/handlers';
+import type { AgentMessage } from '@/types/handlers';
+// Task is defined locally in chatStore.ts
+import type { Agent, TaskInfo, ToolKit } from '@/types/handlers';
 
 // ============================================================================
 // TOOLKIT UTILITIES
@@ -83,23 +79,24 @@ export const resolveProcessTaskIdForToolkitEvent = (
  * Filter and normalize agent message for toolkit processing.
  */
 export const filterMessage = (message: AgentMessage): AgentMessage | null => {
-  if (message.data.toolkit_name?.includes('Search ')) {
-    message.data.toolkit_name = 'Search Toolkit';
+  const data = message.data as Record<string, unknown>;
+  if ((data.toolkit_name as string)?.includes('Search ')) {
+    data.toolkit_name = 'Search Toolkit';
   }
-  if (message.data.method_name?.includes('search')) {
-    message.data.method_name = 'search';
+  if ((data.method_name as string)?.includes('search')) {
+    data.method_name = 'search';
   }
 
-  message.data.message = normalizeToolkitMessage(message.data.message);
+  data.message = normalizeToolkitMessage(data.message);
 
-  if (message.data.toolkit_name === 'Note Taking Toolkit') {
-    message.data.message = message.data.message
+  if (data.toolkit_name === 'Note Taking Toolkit') {
+    data.message = (data.message as string)
       .replace(/content='/g, '')
       .replace(/', update=False/g, '')
       .replace(/', update=True/g, '');
   }
-  if (message.data.method_name === 'scrape') {
-    message.data.message = message.data.message
+  if (data.method_name === 'scrape') {
+    data.message = (data.message as string)
       .replace(/content='/g, '')
       .replace(/'/g, '');
   }
@@ -110,6 +107,13 @@ export const filterMessage = (message: AgentMessage): AgentMessage | null => {
 // ============================================================================
 // TOOLKIT HANDLERS
 // ============================================================================
+
+// Task type compatible with chatStore.ts Task interface
+interface Task {
+  taskAssigning: Agent[];
+  taskRunning: TaskInfo[];
+  // other properties as needed
+}
 
 export interface ToolkitHandlerDeps {
   tasks: Record<string, Task>;
@@ -133,22 +137,24 @@ export const handleActivateToolkit = (deps: ToolkitHandlerDeps): void => {
     addWebViewUrl,
   } = deps;
 
+  const data = agentMessages.data as Record<string, unknown>;
+
   // add log
   let taskAssigning = [...tasks[currentTaskId].taskAssigning];
   const resolvedProcessTaskId = resolveProcessTaskIdForToolkitEvent(
     tasks,
     currentTaskId,
-    agentMessages.data.agent_name,
-    agentMessages.data.process_task_id
+    data.agent_name as string | undefined,
+    data.process_task_id
   );
   let assigneeAgentIndex = taskAssigning!.findIndex((agent: Agent) =>
     agent.tasks.find((task: TaskInfo) => task.id === resolvedProcessTaskId)
   );
 
   // Fallback: if task ID not found, try finding by agent type
-  if (assigneeAgentIndex === -1 && agentMessages.data.agent_name) {
+  if (assigneeAgentIndex === -1 && data.agent_name) {
     assigneeAgentIndex = taskAssigning!.findIndex(
-      (agent: Agent) => agent.type === agentMessages.data.agent_name
+      (agent: Agent) => agent.type === data.agent_name
     );
   }
 
@@ -161,46 +167,44 @@ export const handleActivateToolkit = (deps: ToolkitHandlerDeps): void => {
   }
 
   if (
-    agentMessages.data.toolkit_name === 'Browser Toolkit' &&
-    agentMessages.data.method_name === 'browser visit page'
+    data.toolkit_name === 'Browser Toolkit' &&
+    data.method_name === 'browser visit page'
   ) {
     addWebViewUrl(
       currentTaskId,
-      normalizeToolkitMessage(agentMessages.data.message)
+      normalizeToolkitMessage(data.message)
         .replace(/url=/g, '')
         .replace(/'/g, '') as string,
       resolvedProcessTaskId
     );
   }
   if (
-    agentMessages.data.toolkit_name === 'Browser Toolkit' &&
-    agentMessages.data.method_name === 'visit page'
+    data.toolkit_name === 'Browser Toolkit' &&
+    data.method_name === 'visit page'
   ) {
     console.log('match success');
     addWebViewUrl(
       currentTaskId,
-      normalizeToolkitMessage(agentMessages.data.message) as string,
+      normalizeToolkitMessage(data.message) as string,
       resolvedProcessTaskId
     );
   }
   if (
-    agentMessages.data.toolkit_name === 'ElectronToolkit' &&
-    agentMessages.data.method_name === 'browse_url'
+    data.toolkit_name === 'ElectronToolkit' &&
+    data.method_name === 'browse_url'
   ) {
     addWebViewUrl(
       currentTaskId,
-      normalizeToolkitMessage(agentMessages.data.message) as string,
+      normalizeToolkitMessage(data.message) as string,
       resolvedProcessTaskId
     );
   }
   if (
-    agentMessages.data.method_name === 'browser_navigate' &&
-    agentMessages.data.message?.startsWith('{"url"')
+    data.method_name === 'browser_navigate' &&
+    (data.message as string)?.startsWith('{"url"')
   ) {
     try {
-      const urlData = JSON.parse(
-        normalizeToolkitMessage(agentMessages.data.message)
-      );
+      const urlData = JSON.parse(normalizeToolkitMessage(data.message));
       if (urlData?.url) {
         addWebViewUrl(
           currentTaskId,
@@ -210,7 +214,7 @@ export const handleActivateToolkit = (deps: ToolkitHandlerDeps): void => {
       }
     } catch (error) {
       console.error('Failed to parse browser_navigate URL:', error);
-      console.error('Raw message:', agentMessages.data.message);
+      console.error('Raw message:', data.message);
     }
   }
   let taskRunning = [...tasks[currentTaskId].taskRunning];
@@ -220,7 +224,8 @@ export const handleActivateToolkit = (deps: ToolkitHandlerDeps): void => {
   );
 
   if (taskIndex !== -1) {
-    const { toolkit_name, method_name } = agentMessages.data;
+    const toolkit_name = data.toolkit_name as string | undefined;
+    const method_name = data.method_name as string | undefined;
     if (toolkit_name && method_name) {
       const message = filterMessage(agentMessages);
       if (message) {
@@ -228,7 +233,9 @@ export const handleActivateToolkit = (deps: ToolkitHandlerDeps): void => {
           toolkitId: generateUniqueId(),
           toolkitName: toolkit_name,
           toolkitMethods: method_name,
-          message: normalizeToolkitMessage(message.data.message),
+          message: normalizeToolkitMessage(
+            (message.data as Record<string, unknown>).message
+          ),
           toolkitStatus: AgentStatusValue.RUNNING,
         };
 
@@ -267,13 +274,15 @@ export const handleDeactivateToolkit = (deps: ToolkitHandlerDeps): void => {
     setTaskRunning,
   } = deps;
 
+  const data = agentMessages.data as Record<string, unknown>;
+
   // add log
   let taskAssigning = [...tasks[currentTaskId].taskAssigning];
   const resolvedProcessTaskId = resolveProcessTaskIdForToolkitEvent(
     tasks,
     currentTaskId,
-    agentMessages.data.agent_name,
-    agentMessages.data.process_task_id
+    data.agent_name as string | undefined,
+    data.process_task_id
   );
 
   const assigneeAgentIndex = taskAssigning!.findIndex((agent: Agent) =>
@@ -288,8 +297,8 @@ export const handleDeactivateToolkit = (deps: ToolkitHandlerDeps): void => {
       if (task) {
         let index = task.toolkits?.findIndex((toolkit: ToolKit) => {
           return (
-            toolkit.toolkitName === agentMessages.data.toolkit_name &&
-            toolkit.toolkitMethods === agentMessages.data.method_name &&
+            toolkit.toolkitName === data.toolkit_name &&
+            toolkit.toolkitMethods === data.method_name &&
             toolkit.toolkitStatus === AgentStatusValue.RUNNING
           );
         });
@@ -297,7 +306,7 @@ export const handleDeactivateToolkit = (deps: ToolkitHandlerDeps): void => {
         if (task.toolkits && index !== -1 && index !== undefined) {
           task.toolkits[index].message =
             `${normalizeToolkitMessage(task.toolkits[index].message)}
-${normalizeToolkitMessage(message.data.message)}`.trim();
+${normalizeToolkitMessage((message.data as Record<string, unknown>).message)}`.trim();
           task.toolkits[index].toolkitStatus = AgentStatusValue.COMPLETED;
         }
       }
@@ -307,10 +316,12 @@ ${normalizeToolkitMessage(message.data.message)}`.trim();
   }
 
   let taskRunning = [...tasks[currentTaskId].taskRunning];
-  const { toolkit_name, method_name, message } = agentMessages.data;
+  const toolkit_name = data.toolkit_name as string | undefined;
+  const method_name = data.method_name as string | undefined;
+  const message = data.message as string | undefined;
   const taskIndex = taskRunning.findIndex(
     (task) =>
-      task.agent?.type === agentMessages.data.agent_name &&
+      task.agent?.type === data.agent_name &&
       task.toolkits?.at(-1)?.toolkitName === toolkit_name
   );
 
@@ -322,7 +333,9 @@ ${normalizeToolkitMessage(message.data.message)}`.trim();
         taskRunning![taskIndex].toolkits?.unshift({
           toolkitName: toolkit_name,
           toolkitMethods: method_name,
-          message: normalizeToolkitMessage(targetMessage.data.message),
+          message: normalizeToolkitMessage(
+            (targetMessage.data as Record<string, unknown>).message
+          ),
           toolkitStatus: AgentStatusValue.COMPLETED,
         });
       }
