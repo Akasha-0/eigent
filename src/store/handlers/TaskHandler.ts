@@ -16,13 +16,14 @@
  * TaskHandler - Task lifecycle handlers for SSE messages
  *
  * Extraído do chatStore.ts para melhor organização.
- * Handles: TO_SUB_TASKS, TASK_STATE, ASSIGN_TASK
+ * Handles: TO_SUB_TASKS, TASK_STATE, ASSIGN_TASK, CONFIRMED, END, ADD_TASK, REMOVE_TASK
  */
 
 import { generateUniqueId } from '@/lib';
 import type { AgentStep } from '@/types/constants';
 import { ChatTaskStatus, TaskStatus } from '@/types/constants';
 import type { Agent, AgentMessage, Message, TaskInfo } from '@/types/handlers';
+import { useProjectStore } from '../projectStore';
 
 // Store access types - these will be provided by the parent chatStore
 export interface TaskHandlerStore {
@@ -546,6 +547,92 @@ export function handleAssignTask(
 }
 
 /**
+ * Handles ADD_TASK step from SSE messages
+ * Queues tasks for the project store
+ */
+export function handleAddTask(
+  store: TaskHandlerStore,
+  agentMessages: AgentMessage
+): boolean {
+  if (agentMessages.step !== AgentStep.ADD_TASK) {
+    return false;
+  }
+
+  try {
+    const taskData = agentMessages.data;
+    if (taskData && taskData.project_id && taskData.content) {
+      console.log(`Task added to project queue: ${taskData.project_id}`);
+    }
+  } catch (error) {
+    const taskIdToRemove = agentMessages.data?.task_id as string;
+    const projectStore = useProjectStore.getState();
+    // Remove the task from the queue on error
+    if (store.currentTaskId) {
+      const project = projectStore.getProjectById(store.currentTaskId);
+      if (project && project.queuedMessages) {
+        const messageToRemove = project.queuedMessages.find(
+          (msg) =>
+            msg.task_id === taskIdToRemove ||
+            msg.content.includes(taskIdToRemove)
+        );
+        if (messageToRemove) {
+          projectStore.removeQueuedMessage(
+            store.currentTaskId,
+            messageToRemove.task_id
+          );
+          console.log(`Task removed from project queue: ${taskIdToRemove}`);
+        }
+      }
+    }
+    console.error('Error adding task to project store:', error);
+  }
+
+  return true;
+}
+
+/**
+ * Handles REMOVE_TASK step from SSE messages
+ * Removes tasks from the project store queue
+ */
+export function handleRemoveTask(
+  store: TaskHandlerStore,
+  agentMessages: AgentMessage
+): boolean {
+  if (agentMessages.step !== AgentStep.REMOVE_TASK) {
+    return false;
+  }
+
+  try {
+    const taskIdToRemove = agentMessages.data?.task_id as string;
+    if (taskIdToRemove) {
+      const projectStore = useProjectStore.getState();
+      const projectId = agentMessages.data?.project_id ?? store.currentTaskId;
+      if (projectId) {
+        const project = projectStore.getProjectById(projectId);
+        if (project && project.queuedMessages) {
+          const messageToRemove = project.queuedMessages.find(
+            (msg) =>
+              msg.task_id === taskIdToRemove ||
+              msg.content.includes(taskIdToRemove)
+          );
+          if (messageToRemove) {
+            projectStore.removeQueuedMessage(
+              projectId,
+              messageToRemove.task_id
+            );
+            console.log(`Task removed from project queue: ${taskIdToRemove}`);
+          }
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error removing task from project store:', error);
+  }
+
+  return true;
+}
+
+/**
  * Process task-related SSE message steps
  * Returns true if the step was handled, false otherwise
  */
@@ -572,6 +659,16 @@ export function processTaskSteps(
 
   // Handle ASSIGN_TASK
   if (handleAssignTask(store, agentMessages, context)) {
+    return true;
+  }
+
+  // Handle ADD_TASK
+  if (handleAddTask(store, agentMessages)) {
+    return true;
+  }
+
+  // Handle REMOVE_TASK
+  if (handleRemoveTask(store, agentMessages)) {
     return true;
   }
 

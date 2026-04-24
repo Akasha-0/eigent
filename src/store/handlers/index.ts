@@ -108,7 +108,9 @@ export {
 } from './AgentHandler';
 
 export {
+  handleAddTask,
   handleAssignTask,
+  handleRemoveTask,
   handleTaskState,
   handleToSubTasks,
   processTaskSteps,

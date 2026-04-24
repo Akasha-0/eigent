@@ -1726,76 +1726,31 @@ const chatStore = (initial?: Partial<ChatStore>) =>
             return;
           }
 
-          // Handle add_task events for project store
-          if (agentMessages.step === AgentStep.ADD_TASK) {
-            try {
-              const taskData = agentMessages.data;
-              if (taskData && taskData.project_id && taskData.content) {
-                console.log(
-                  `Task added to project queue: ${taskData.project_id}`
-                );
-              }
-            } catch (error) {
-              const taskIdToRemove = agentMessages.data.task_id as string;
-              const projectStore = useProjectStore.getState();
-              //Remove the task from the queue on error
-              if (project_id) {
-                const project = projectStore.getProjectById(project_id);
-                if (project && project.queuedMessages) {
-                  const messageToRemove = project.queuedMessages.find(
-                    (msg) =>
-                      msg.task_id === taskIdToRemove ||
-                      msg.content.includes(taskIdToRemove)
-                  );
-                  if (messageToRemove) {
-                    projectStore.removeQueuedMessage(
-                      project_id,
-                      messageToRemove.task_id
-                    );
-                    console.log(
-                      `Task removed from project queue: ${taskIdToRemove}`
-                    );
-                  }
-                }
-              }
-              console.error('Error adding task to project store:', error);
-            }
-            return;
-          }
+          // Handle ADD_TASK and REMOVE_TASK via TaskHandler
+          const taskHandlerStore: TaskHandlerStore = {
+            currentTaskId,
+            tasks,
+            setTaskInfo,
+            setTaskRunning,
+            setTaskAssigning,
+            setSummaryTask,
+            setStatus,
+            setIsTaskEdit,
+            addMessages,
+            addTokens,
+            getTokens: getTokens as (taskId: string) => number,
+            clearStreamingDecomposeText,
+            handleConfirmTask,
+          };
 
-          // Handle remove_task events for project store
-          if (agentMessages.step === AgentStep.REMOVE_TASK) {
-            try {
-              const taskIdToRemove = agentMessages.data.task_id as string;
-              if (taskIdToRemove) {
-                const projectStore = useProjectStore.getState();
-                // Try to remove from current project otherwise
-                const project_id =
-                  agentMessages.data.project_id ?? projectStore.activeProjectId;
-                if (project_id) {
-                  // Find and remove the message with matching task ID
-                  const project = projectStore.getProjectById(project_id);
-                  if (project && project.queuedMessages) {
-                    const messageToRemove = project.queuedMessages.find(
-                      (msg) =>
-                        msg.task_id === taskIdToRemove ||
-                        msg.content.includes(taskIdToRemove)
-                    );
-                    if (messageToRemove) {
-                      projectStore.removeQueuedMessage(
-                        project_id,
-                        messageToRemove.task_id
-                      );
-                      console.log(
-                        `Task removed from project queue: ${taskIdToRemove}`
-                      );
-                    }
-                  }
-                }
-              }
-            } catch (error) {
-              console.error('Error removing task from project store:', error);
-            }
+          if (
+            processTaskSteps(
+              taskHandlerStore,
+              agentMessages,
+              autoConfirmTimers,
+              { type, historyId, project_id }
+            )
+          ) {
             return;
           }
 
